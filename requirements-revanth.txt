@@ -1,0 +1,10 @@
+numpy>=1.24,<3
+pandas>=2.0,<3
+xarray>=2024.1
+scipy>=1.10
+scikit-learn>=1.3,<2
+matplotlib>=3.7
+h5netcdf>=1.3
+h5py>=3.9
+PyYAML>=6
+nbformat>=5

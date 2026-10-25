@@ -128,3 +128,11 @@ Contains written documentation and report materials.
 Each member is responsible for individually reviewing at least 13 relevant research papers for the intermediate submission. Use APA citation format and write the survey in your own words.
 
 ---
+
+## Revanth: combined-data analysis and Ridge baseline
+
+See [the run guide and current status](reports/revanth_combined_ridge.md) and
+[the companion notebook](notebooks/Revanth_Combined_Analysis_Ridge.ipynb).
+The implementation expects Rachan's `aligned_0.5deg.nc` handoff and uses the shared
+chronological split configuration. Real-data results are pending that input;
+synthetic tests are software checks only.

@@ -12,3 +12,9 @@ data/processed/*
 grace_fo_eda.md
 scripts/__pycache__
 tests/__pycache__
+
+# Revanth: regenerate large model/prediction artifacts; keep small reviewed results.
+results/revanth_combined_ridge/*.nc
+results/revanth_combined_ridge/*.npz
+.ipynb_checkpoints/
+.pytest_cache/
