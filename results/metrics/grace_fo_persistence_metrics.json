@@ -1,0 +1,49 @@
+{
+  "baseline": "one_month_persistence",
+  "forecast_horizon_months": 1,
+  "metric_units": {
+    "mae_cm": "cm",
+    "rmse_cm": "cm",
+    "area_weighted_mean_temporal_pearson_r": "unitless"
+  },
+  "split_datasets": {
+    "train": "data/processed/grace_fo_train.nc",
+    "validation": "data/processed/grace_fo_validation.nc",
+    "test": "data/processed/grace_fo_test.nc"
+  },
+  "splits": {
+    "train": {
+      "mae_cm": 3.240010291260592,
+      "rmse_cm": 5.605398223739488,
+      "area_weighted_mean_temporal_pearson_r": 0.7989677334996278,
+      "evaluated_months": 47,
+      "evaluated_land_cells": 85912,
+      "correlation_eligible_land_cells": 85912,
+      "valid_land_cell_month_observations": 4037864,
+      "target_start": "2019-01-01",
+      "target_end": "2022-12-31"
+    },
+    "validation": {
+      "mae_cm": 3.1995319869003715,
+      "rmse_cm": 5.469035035558889,
+      "area_weighted_mean_temporal_pearson_r": 0.6531456537276187,
+      "evaluated_months": 12,
+      "evaluated_land_cells": 85912,
+      "correlation_eligible_land_cells": 85912,
+      "valid_land_cell_month_observations": 1030944,
+      "target_start": "2023-01-01",
+      "target_end": "2023-12-31"
+    },
+    "test": {
+      "mae_cm": 3.247689922484447,
+      "rmse_cm": 5.515596288185452,
+      "area_weighted_mean_temporal_pearson_r": 0.7524390984801044,
+      "evaluated_months": 24,
+      "evaluated_land_cells": 85912,
+      "correlation_eligible_land_cells": 85912,
+      "valid_land_cell_month_observations": 2061888,
+      "target_start": "2024-01-01",
+      "target_end": "2025-12-31"
+    }
+  }
+}

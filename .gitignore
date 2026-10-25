@@ -1,1 +1,14 @@
 annotated-Group5_Project_Proposal.docx.pdf
+.env
+.env.*
+!.env.example
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+!data/processed/grace_fo_train.nc
+!data/processed/grace_fo_validation.nc
+!data/processed/grace_fo_test.nc
+grace_fo_eda.md
+scripts/__pycache__
+tests/__pycache__

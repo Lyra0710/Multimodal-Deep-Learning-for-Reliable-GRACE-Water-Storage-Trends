@@ -1,0 +1,34 @@
+{
+  "model_name": "grace_fo_one_month_persistence_baseline",
+  "model_type": "deterministic_persistence",
+  "equation": "predicted_twsa(t) = observed_twsa(t - 1)",
+  "target_variable": "lwe_thickness",
+  "modeling_mask": "land_mask == 1",
+  "forecast_horizon_months": 1,
+  "study_period": {
+    "start": "2019-01-01",
+    "end": "2025-12-31"
+  },
+  "splits": {
+    "train": {
+      "start": "2019-01-01",
+      "end": "2022-12-31"
+    },
+    "validation": {
+      "start": "2023-01-01",
+      "end": "2023-12-31"
+    },
+    "test": {
+      "start": "2024-01-01",
+      "end": "2025-12-31"
+    }
+  },
+  "fitting": "None; persistence has no learned parameters.",
+  "normalization": "None; metrics and forecasts remain in centimeters.",
+  "processed_input": "data/processed/grace_fo_processed.nc",
+  "split_datasets": {
+    "train": "data/processed/grace_fo_train.nc",
+    "validation": "data/processed/grace_fo_validation.nc",
+    "test": "data/processed/grace_fo_test.nc"
+  }
+}
