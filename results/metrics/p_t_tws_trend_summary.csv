@@ -1,0 +1,7 @@
+variable,pct_sig_increasing,pct_sig_decreasing,period
+precip,3.6,5.5,full record
+t2m,38.5,3.2,full record
+tws,28.1,37.9,full record
+precip,1.8,2.9,GRACE-FO
+t2m,26.4,0.1,GRACE-FO
+tws,23.9,35.4,GRACE-FO

@@ -1,0 +1,61 @@
+# Precipitation/temperature drivers of GRACE TWS and the baselines the deep-learning models must beat.
+# Train/validation/test dates are read from the shared GRACE-FO configuration so every model is
+# scored on identical target months.
+shared_split_config: "grace_fo_config.yaml"
+
+data:
+  raw_dir: "data/raw"                    # GRACE CRI NetCDF (shared with grace_fo_processing.py); imerg/ and merra2/ subfolders
+  cache_dir: "data/processed/p_t_tws_cache"
+  driver_start: "2000-06"                # IMERG starts 2000-06; earlier P/T gives lag/cumulative features for 2002
+  tws_start: "2002-04"                   # first GRACE month
+  end: "2025-12"                         # clipped automatically to the last month all products share
+  resolution_deg: 0.5                    # GRACE native grid; mascons are ~3 deg, so 0.5 deg is already oversampled
+  latitude_limit_deg: 60                 # IMERG is most reliable within 60S-60N; also excludes Antarctica/most of Greenland
+  min_tws_fraction: 0.7                  # keep pixels with >= 70% of GRACE months observed
+  stream: true                           # stream IMERG/MERRA-2 variables instead of downloading full files (~10+ GB each)
+  n_jobs: 1
+
+products:
+  imerg:
+    short_name: "GPM_3IMERGM"
+    version: "07"
+  merra2:
+    short_name: "M2TMNXSLV"
+    version: "5.12.4"
+
+analysis:
+  correlation_lags: [0, 1, 2, 3, 4, 5, 6]
+  cumulative_windows: [1, 3, 6, 9, 12, 18, 24]
+  gracefo_trend_start: "2018-06"
+  min_trend_months: 24
+  fdr_q: 0.05
+
+baselines:
+  setup: "nowcast"                       # "nowcast" uses month-t drivers; "forecast" shifts every driver by one month
+  precip_lags: [0, 1]
+  temperature_lags: [0, 1]
+  cumulative_windows: [3, 12]
+  gbm_cumulative_window: 24
+  ridge_alphas: [0.1, 1.0, 10.0, 100.0, 1000.0]
+  seasonal_trend_alpha: 1.0e-6           # plain OLS harmonic + trend fit, not tuned
+  gbm:
+    max_iter: 500
+    learning_rate: 0.05
+    max_leaf_nodes: 63
+    min_samples_leaf: 200
+    l2_regularization: 1.0
+  gbm_max_rows: 600000
+  min_evaluation_months: 12
+  spatial_block_deg: 10
+  spatial_folds: 5
+  spatial_ridge_alpha: 1.0
+  spatial_gbm_max_iter: 400
+  seed: 42
+
+regions:
+  California Central Valley: {lat: [34, 41], lon: [-123, -118]}
+  NW India: {lat: [25, 33], lon: [70, 80]}
+  North China Plain: {lat: [34, 41], lon: [113, 120]}
+  Tigris–Euphrates: {lat: [30, 38], lon: [38, 48]}
+  Central Amazon: {lat: [-10, 0], lon: [-70, -55]}
+  Murray–Darling: {lat: [-38, -26], lon: [140, 152]}

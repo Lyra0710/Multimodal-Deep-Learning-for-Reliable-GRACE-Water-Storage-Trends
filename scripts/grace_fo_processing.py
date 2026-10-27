@@ -68,16 +68,6 @@ def download_source(download_dir: Path, env_file: Path, start: str, end: str) ->
         )
 
     download_dir.mkdir(parents=True, exist_ok=True)
-    # Give the downloader an isolated, permissions-restricted credentials file.
-    with tempfile.NamedTemporaryFile(mode="w", prefix="earthdata_", delete=False) as handle:
-        netrc_path = Path(handle.name)
-        handle.write(
-            "machine urs.earthdata.nasa.gov\n"
-            f"login {username}\n"
-            f"password {password}\n"
-        )
-    netrc_path.chmod(0o600)
-
     command = [
         downloader,
         "-c", COLLECTION,
@@ -86,12 +76,19 @@ def download_source(download_dir: Path, env_file: Path, start: str, end: str) ->
         "--end-date", f"{end}T23:59:59Z",
         "-e", ".nc",
     ]
-    try:
+    # Give the downloader an isolated, permissions-restricted credentials file.
+    with tempfile.TemporaryDirectory(prefix="earthdata_") as home:
+        netrc_path = Path(home) / ".netrc"
+        netrc_path.write_text(
+            "machine urs.earthdata.nasa.gov\n"
+            f"login {username}\n"
+            f"password {password}\n"
+        )
+        netrc_path.chmod(0o600)
         environment = os.environ.copy()
+        environment["HOME"] = home
         environment["NETRC"] = str(netrc_path)
         subprocess.run(command, check=True, env=environment)
-    finally:
-        netrc_path.unlink(missing_ok=True)
 
     files = sorted(download_dir.glob("*.nc"))
     if len(files) != 1:

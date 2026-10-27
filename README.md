@@ -79,6 +79,56 @@ Supporting GRACE-FO artifacts are:
 
 ---
 
+## Precipitation & Temperature Drivers of TWS and Climate-Driven Baselines
+
+This stage puts GRACE/GRACE-FO TWS (2002-04 onward), GPM IMERG precipitation, and MERRA-2 2 m air temperature on one 0.5° grid and calendar. It then analyzes P/T trends and their relationship with TWS, and evaluates the baselines the deep-learning models must beat. Train/validation/test dates are read from `configs/grace_fo_config.yaml`, so these baselines use exactly the same months as the persistence baseline. All other settings live in `configs/p_t_tws_config.yaml`.
+
+The GRACE CRI NetCDF is reused from `data/raw/` (or downloaded with `grace_fo_processing.py`'s downloader). IMERG and MERRA-2 are streamed with `earthaccess` using the same `.env` credentials. For these GES DISC products, also authorize the *NASA GESDISC DATA ARCHIVE* application in your Earthdata profile. Reduced driver cubes are cached in `data/processed/p_t_tws_cache/`; the first run takes about an hour per product.
+
+```bash
+python -m pip install earthaccess pymannkendall h5netcdf scikit-learn joblib
+
+python scripts/p_t_tws_data.py \
+  --config configs/p_t_tws_config.yaml \
+  --output data/processed/p_t_tws_aligned_0.5deg.nc \
+  --env-file .env
+
+python scripts/p_t_tws_analysis.py \
+  --input data/processed/p_t_tws_aligned_0.5deg.nc \
+  --config configs/p_t_tws_config.yaml \
+  --metrics-dir results/metrics \
+  --figures-dir results/figures \
+  --maps-dir data/processed
+
+python scripts/p_t_tws_baselines.py \
+  --input data/processed/p_t_tws_aligned_0.5deg.nc \
+  --config configs/p_t_tws_config.yaml \
+  --metrics-dir results/metrics \
+  --figures-dir results/figures \
+  --predictions-output data/processed/p_t_tws_baseline_predictions.nc \
+  --model-output models/p_t_tws_baselines.json
+```
+
+[notebooks/P_T_TWS_Drivers_and_Baselines.ipynb](notebooks/P_T_TWS_Drivers_and_Baselines.ipynb) runs the same steps interactively, with the methodology explained per section.
+
+- Anomalies use a monthly climatology fitted on the training split only. Pixels are land (`land_mask`), |lat| ≤ 60°, finite P/T, and ≥ 70% of GRACE months observed.
+- Trends: Mann–Kendall with Hamed–Rao correction, Theil–Sen slopes, and Benjamini–Hochberg FDR. Correlations use an autocorrelation-adjusted effective sample size.
+- Temporal baselines: climatology, persistence, seasonal persistence, per-pixel ridge (seasonal + trend, P/T drivers, ARX), and pooled gradient boosting on seasonal-trend residuals. Hyperparameters are chosen on validation, models are refit on train + validation, and all are scored once on identical test cells.
+- Geographic baselines: pooled ridge and gradient boosting under 10° × 10° spatial block cross-validation.
+
+Outputs:
+
+- `data/processed/p_t_tws_aligned_0.5deg.nc`: aligned TWS, P, T, valid mask, and training-climatology anomalies for teammates.
+- `data/processed/p_t_tws_baseline_predictions.nc`: every baseline's gridded prediction plus `test_eval_mask` and `spatial_fold`. Score deep-learning predictions on exactly these cells with `p_t_tws_baselines.evaluate_predictions`.
+- `data/processed/p_t_tws_trend_maps.nc`, `data/processed/p_t_tws_correlation_maps.nc`: per-pixel trend and correlation maps.
+- `results/metrics/p_t_tws_baseline_metrics_gracefo.csv`, `results/metrics/p_t_tws_baseline_metrics_spatial_cv.csv`, `results/metrics/p_t_tws_correlation_summary.csv`, `results/metrics/p_t_tws_trend_summary.csv`.
+- `results/figures/p_t_tws_*.png`: driver-analysis and baseline figures.
+- `models/p_t_tws_baselines.json`: feature sets, selected ridge strengths, gradient-boosting iterations, splits, and seed (fitted per-pixel weights are not stored).
+
+Run all unit tests from the repository root with `python -m unittest discover -s tests`.
+
+---
+
 ## Folder Guidelines
 
 ### `data/`

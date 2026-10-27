@@ -1,0 +1,100 @@
+{
+  "model_name": "p_t_tws_baselines",
+  "model_type": "per_pixel_ridge_and_pooled_gradient_boosting",
+  "target_variable": "tws (GRACE/GRACE-FO lwe_thickness, cm)",
+  "setup": "nowcast",
+  "feature_sets": {
+    "Seasonal + trend": [
+      "h0",
+      "h1",
+      "h2",
+      "h3",
+      "trend"
+    ],
+    "LR (P,T)": [
+      "h0",
+      "h1",
+      "h2",
+      "h3",
+      "p_lag0",
+      "p_lag1",
+      "cumP3",
+      "cumP12",
+      "t_lag0",
+      "t_lag1"
+    ],
+    "LR (P,T) + trend": [
+      "h0",
+      "h1",
+      "h2",
+      "h3",
+      "trend",
+      "p_lag0",
+      "p_lag1",
+      "cumP3",
+      "cumP12",
+      "t_lag0",
+      "t_lag1"
+    ],
+    "ARX (P,T,trend,TWS t-1)": [
+      "h0",
+      "h1",
+      "h2",
+      "h3",
+      "trend",
+      "p_lag0",
+      "p_lag1",
+      "cumP3",
+      "cumP12",
+      "t_lag0",
+      "t_lag1",
+      "tws_lag1"
+    ]
+  },
+  "ridge_alpha_selected": {
+    "Seasonal + trend": 1e-06,
+    "LR (P,T)": 10.0,
+    "LR (P,T) + trend": 10.0,
+    "ARX (P,T,trend,TWS t-1)": 10.0
+  },
+  "validation_rmse_cm": {
+    "Seasonal + trend": 8.339899456080738,
+    "LR (P,T)": 8.060380057674182,
+    "LR (P,T) + trend": 6.29760939892199,
+    "ARX (P,T,trend,TWS t-1)": 4.490048779602889
+  },
+  "gbm_iterations": 362,
+  "gbm_hyperparameters": {
+    "max_iter": 500,
+    "learning_rate": 0.05,
+    "max_leaf_nodes": 63,
+    "min_samples_leaf": 200,
+    "l2_regularization": 1.0
+  },
+  "splits": {
+    "train": {
+      "start": "2019-01-01",
+      "end": "2022-12-31"
+    },
+    "validation": {
+      "start": "2023-01-01",
+      "end": "2023-12-31"
+    },
+    "test": {
+      "start": "2024-01-01",
+      "end": "2025-12-31"
+    }
+  },
+  "last_month": "2025-09",
+  "n_pixels": 46325,
+  "spatial_cv": {
+    "block_deg": 10,
+    "folds": 5,
+    "ridge_alpha": 1.0,
+    "gbm_max_iter": 400
+  },
+  "seed": 42,
+  "fitting": "Per-pixel ridge models are refit on train + validation; fitted weights are not stored.",
+  "normalization": "Ridge features are standardized per pixel on fitting months; metrics remain in centimeters.",
+  "aligned_input": "data/processed/p_t_tws_aligned_0.5deg.nc"
+}

@@ -1,0 +1,4 @@
+,MAE_cm,RMSE_cm,r_area_wtd,anom_r_area_wtd,NSE_median,pct_NSE_pos,n_cells,MSESS_vs_zero
+Zero (time-mean),8.902,11.065,,0.073,-0.238,0.0,46325.0,0.0
+"Pooled ridge (P,T)",8.725,10.779,0.343,0.214,-0.261,33.675,46325.0,0.06
+"Pooled GBM (P,T)",7.693,9.474,0.522,0.318,0.014,50.873,46325.0,0.24
