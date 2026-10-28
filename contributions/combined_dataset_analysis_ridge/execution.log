@@ -1,0 +1,6 @@
+Analyzing 46497 retained cells and 93 calendar months
+               model   mae_cm  rmse_cm  area_weighted_mean_temporal_pearson_r  evaluated_months  evaluated_land_cells  valid_land_cell_month_observations
+               ridge 3.059607 4.709479                               0.809351                21                 46497                              976437
+         persistence 3.463547 5.759867                               0.739773                21                 46497                              976437
+seasonal_persistence 2.335883 3.569066                               0.795236                21                 46497                              976437
+         climatology 5.927680 9.123860                               0.596709                21                 46497                              976437

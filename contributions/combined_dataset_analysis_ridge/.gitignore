@@ -1,0 +1,4 @@
+__pycache__/
+*.nc
+*.npz
+rerun_results/

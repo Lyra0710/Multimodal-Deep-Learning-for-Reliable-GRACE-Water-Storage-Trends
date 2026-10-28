@@ -1,0 +1,7 @@
+relationship,period,eligible_cells,area_weighted_mean_r
+raw_tws_precip,train,46497,0.18327863253178514
+raw_tws_t2m,train,46497,-0.25525242906163476
+raw_precip_t2m,train,46497,0.12314063597703045
+seasonal_anomaly_tws_precip,train,46497,0.15209508847208367
+seasonal_anomaly_tws_t2m,train,46497,-0.23533039733735872
+seasonal_anomaly_precip_t2m,train,46497,-0.19368939151712747

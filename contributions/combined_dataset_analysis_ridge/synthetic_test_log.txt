@@ -1,0 +1,31 @@
+Matplotlib is building the font cache; this may take a moment.
+test_calendar_gap_is_restored_and_not_used_as_previous_month (test_combined_ridge.CombinedTests.test_calendar_gap_is_restored_and_not_used_as_previous_month) ... ok
+test_constant_series_correlation_is_undefined (test_combined_ridge.CombinedTests.test_constant_series_correlation_is_undefined) ... ok
+test_end_to_end_and_no_test_target_leakage (test_combined_ridge.CombinedTests.test_end_to_end_and_no_test_target_leakage) ... Analyzing 3 retained cells and 93 calendar months
+Analyzing 3 retained cells and 93 calendar months
+ok
+test_inputs_do_not_use_target_month (test_combined_ridge.CombinedTests.test_inputs_do_not_use_target_month) ... ok
+test_metrics_match_hand_calculation_and_mask (test_combined_ridge.CombinedTests.test_metrics_match_hand_calculation_and_mask) ... ok
+test_missing_input_has_actionable_message (test_combined_ridge.CombinedTests.test_missing_input_has_actionable_message) ... ok
+test_rejects_duplicate_months_and_wrong_units (test_combined_ridge.CombinedTests.test_rejects_duplicate_months_and_wrong_units) ... ok
+test_scaler_uses_only_fit_rows (test_combined_ridge.CombinedTests.test_scaler_uses_only_fit_rows) ... ok
+test_area_weighted_metrics_and_temporal_correlation (test_grace_fo_pipeline.GraceFoPersistenceTests.test_area_weighted_metrics_and_temporal_correlation) ... ok
+test_persistence_excludes_missing_month_gap (test_grace_fo_pipeline.GraceFoPersistenceTests.test_persistence_excludes_missing_month_gap) ... ok
+test_persistence_uses_previous_consecutive_month_only (test_grace_fo_pipeline.GraceFoPersistenceTests.test_persistence_uses_previous_consecutive_month_only) ... ok
+test_shared_split_configuration_is_chronological (test_grace_fo_pipeline.GraceFoPersistenceTests.test_shared_split_configuration_is_chronological) ... ok
+test_land_view_masks_ocean_without_changing_master (test_grace_fo_pipeline.GraceFoPreprocessingTests.test_land_view_masks_ocean_without_changing_master) ... ok
+test_prepare_preserves_values_and_standardizes_coordinates (test_grace_fo_pipeline.GraceFoPreprocessingTests.test_prepare_preserves_values_and_standardizes_coordinates) ... ok
+test_prepare_rejects_missing_month (test_grace_fo_pipeline.GraceFoPreprocessingTests.test_prepare_rejects_missing_month) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 2.176s
+
+OK
+Quality lwe_thickness: missing=0 | infinite=0
+Quality uncertainty: missing=0 | infinite=0
+Quality land_mask: missing=0 | infinite=0
+Quality mascon_ID: missing=0 | infinite=0
+Quality scale_factor: missing=0 | infinite=0
+Quality GAD: missing=0 | infinite=0
+Quality lat_bounds: missing=0 | infinite=0
+Quality lon_bounds: missing=0 | infinite=0

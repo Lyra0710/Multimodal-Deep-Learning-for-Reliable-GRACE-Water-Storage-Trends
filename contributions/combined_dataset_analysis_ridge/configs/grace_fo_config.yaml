@@ -1,0 +1,19 @@
+study_period:
+  start: "2019-01-01"
+  end: "2025-12-31"
+
+forecast:
+  horizon_months: 1
+  target_variable: "lwe_thickness"
+  land_mask_variable: "land_mask"
+
+splits:
+  train:
+    start: "2019-01-01"
+    end: "2022-12-31"
+  validation:
+    start: "2023-01-01"
+    end: "2023-12-31"
+  test:
+    start: "2024-01-01"
+    end: "2025-12-31"

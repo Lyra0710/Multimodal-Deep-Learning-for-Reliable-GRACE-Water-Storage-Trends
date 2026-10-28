@@ -1,0 +1,4 @@
+PASS: All four model metrics independently reproduced with the existing repository persistence evaluator.
+PASS: Saved Ridge coefficients and scalers reproduce test forecasts at 12 distributed grid cells (float32 tolerance).
+PASS: All models use the same evaluation mask with finite predictions.
+Synthetic regression suite: 15 tests passed before real-data execution.

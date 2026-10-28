@@ -1,0 +1,78 @@
+{
+  "status": "executed",
+  "executed_utc": "2026-10-25T18:11:40.882825+00:00",
+  "package_versions": {
+    "numpy": "2.5.4",
+    "pandas": "2.3.3",
+    "xarray": "2026.9.0",
+    "scikit-learn": "1.9.1",
+    "scipy": "1.18.1",
+    "h5netcdf": "1.8.1"
+  },
+  "input_file": "aligned_0.5deg.nc",
+  "input_sha256": "51c904ab96a05353dabc6ca29313d0bd29dc78d3f7e2bcb48b065916a14911fe",
+  "input_attributes": {
+    "description": "Group 5 aligned GRACE/GRACE-FO TWS, IMERG precipitation, MERRA-2 T2M",
+    "anomalies": "monthly climatology over training period 2019-01\u20132022-12",
+    "grid_deg": 0.5
+  },
+  "configuration": {
+    "study_period": {
+      "start": "2019-01-01",
+      "end": "2025-12-31"
+    },
+    "forecast": {
+      "horizon_months": 1,
+      "target_variable": "lwe_thickness",
+      "land_mask_variable": "land_mask"
+    },
+    "splits": {
+      "train": {
+        "start": "2019-01-01",
+        "end": "2022-12-31"
+      },
+      "validation": {
+        "start": "2023-01-01",
+        "end": "2023-12-31"
+      },
+      "test": {
+        "start": "2024-01-01",
+        "end": "2025-12-31"
+      }
+    }
+  },
+  "features": [
+    "tws_lag1",
+    "precip_lag1",
+    "precip_sum3_lag1",
+    "precip_sum12_lag1",
+    "temperature_lag1",
+    "month_sin",
+    "month_cos",
+    "time_years"
+  ],
+  "alpha_candidates": [
+    0.1,
+    1.0,
+    10.0,
+    100.0,
+    1000.0
+  ],
+  "selected_alpha": 10.0,
+  "refit": "train + validation after alpha selection",
+  "forecast": "retrospective one-step; uses observations through prior calendar month",
+  "source_mask": "upstream mask; may use full-record coverage, so spatial selection is not strictly prospective",
+  "actual_test_start": "2024-01-01",
+  "actual_test_end": "2025-09-01",
+  "missing_requested_test_months": [
+    "2025-10",
+    "2025-11",
+    "2025-12"
+  ],
+  "limitations": [
+    "No operational product-latency simulation",
+    "No geographic generalization test",
+    "Correlations are descriptive, not causal or significance tests",
+    "Fine grid cells are not independent GRACE measurements"
+  ]
+}

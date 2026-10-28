@@ -202,4 +202,8 @@ Contains written documentation and report materials.
 
 Each member is responsible for individually reviewing at least 13 relevant research papers for the intermediate submission. Use APA citation format and write the survey in your own words.
 
+### Combined dataset analysis and Ridge baseline
+
+The [combined dataset contribution](contributions/combined_dataset_analysis_ridge/README.md) includes the analysis notebook, source code, tests, figures, and evaluation tables. For the group RMSE convention, use its `per_cell_test_metrics.csv`. These results cover January 2024–September 2025; cross-model comparisons require matching test dates and valid geographic cells.
+
 ---

@@ -1,0 +1,15 @@
+test_calendar_gap_is_restored_and_not_used_as_previous_month (test_combined_ridge.CombinedTests.test_calendar_gap_is_restored_and_not_used_as_previous_month) ... ok
+test_constant_series_correlation_is_undefined (test_combined_ridge.CombinedTests.test_constant_series_correlation_is_undefined) ... ok
+test_end_to_end_and_no_test_target_leakage (test_combined_ridge.CombinedTests.test_end_to_end_and_no_test_target_leakage) ... Analyzing 3 retained cells and 93 calendar months
+Analyzing 3 retained cells and 93 calendar months
+ok
+test_inputs_do_not_use_target_month (test_combined_ridge.CombinedTests.test_inputs_do_not_use_target_month) ... ok
+test_metrics_match_hand_calculation_and_mask (test_combined_ridge.CombinedTests.test_metrics_match_hand_calculation_and_mask) ... ok
+test_missing_input_has_actionable_message (test_combined_ridge.CombinedTests.test_missing_input_has_actionable_message) ... ok
+test_rejects_duplicate_months_and_wrong_units (test_combined_ridge.CombinedTests.test_rejects_duplicate_months_and_wrong_units) ... ok
+test_scaler_uses_only_fit_rows (test_combined_ridge.CombinedTests.test_scaler_uses_only_fit_rows) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 1.594s
+
+OK
