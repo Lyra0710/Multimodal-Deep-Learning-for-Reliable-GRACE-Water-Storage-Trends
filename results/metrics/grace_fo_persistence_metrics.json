@@ -4,6 +4,8 @@
   "metric_units": {
     "mae_cm": "cm",
     "rmse_cm": "cm",
+    "area_weighted_per_cell_rmse_cm": "cm",
+    "pooled_rmse_cm": "cm",
     "area_weighted_mean_temporal_pearson_r": "unitless"
   },
   "split_datasets": {
@@ -13,35 +15,53 @@
   },
   "splits": {
     "train": {
-      "mae_cm": 3.240010291260592,
-      "rmse_cm": 5.605398223739488,
-      "area_weighted_mean_temporal_pearson_r": 0.7989677334996278,
+      "mae_cm": 3.435609574529101,
+      "rmse_cm": 4.268093933264503,
+      "area_weighted_per_cell_rmse_cm": 4.268093933264503,
+      "pooled_rmse_cm": 5.770138909828751,
+      "area_weighted_mean_temporal_pearson_r": 0.7990295145676212,
+      "evaluation_latitude_range_degrees": [
+        -60,
+        60
+      ],
       "evaluated_months": 47,
-      "evaluated_land_cells": 85912,
-      "correlation_eligible_land_cells": 85912,
-      "valid_land_cell_month_observations": 4037864,
+      "evaluated_land_cells": 46325,
+      "correlation_eligible_land_cells": 46325,
+      "valid_land_cell_month_observations": 2177275,
       "target_start": "2019-01-01",
       "target_end": "2022-12-31"
     },
     "validation": {
-      "mae_cm": 3.1995319869003715,
-      "rmse_cm": 5.469035035558889,
-      "area_weighted_mean_temporal_pearson_r": 0.6531456537276187,
+      "mae_cm": 3.3635619866409714,
+      "rmse_cm": 4.111554466445907,
+      "area_weighted_per_cell_rmse_cm": 4.111554466445907,
+      "pooled_rmse_cm": 5.598469915417819,
+      "area_weighted_mean_temporal_pearson_r": 0.6613719825253168,
+      "evaluation_latitude_range_degrees": [
+        -60,
+        60
+      ],
       "evaluated_months": 12,
-      "evaluated_land_cells": 85912,
-      "correlation_eligible_land_cells": 85912,
-      "valid_land_cell_month_observations": 1030944,
+      "evaluated_land_cells": 46325,
+      "correlation_eligible_land_cells": 46325,
+      "valid_land_cell_month_observations": 555900,
       "target_start": "2023-01-01",
       "target_end": "2023-12-31"
     },
     "test": {
-      "mae_cm": 3.247689922484447,
-      "rmse_cm": 5.515596288185452,
-      "area_weighted_mean_temporal_pearson_r": 0.7524390984801044,
+      "mae_cm": 3.436864503625001,
+      "rmse_cm": 4.2010397417305665,
+      "area_weighted_per_cell_rmse_cm": 4.2010397417305665,
+      "pooled_rmse_cm": 5.692882256430633,
+      "area_weighted_mean_temporal_pearson_r": 0.7637542929806741,
+      "evaluation_latitude_range_degrees": [
+        -60,
+        60
+      ],
       "evaluated_months": 24,
-      "evaluated_land_cells": 85912,
-      "correlation_eligible_land_cells": 85912,
-      "valid_land_cell_month_observations": 2061888,
+      "evaluated_land_cells": 46325,
+      "correlation_eligible_land_cells": 46325,
+      "valid_land_cell_month_observations": 1111800,
       "target_start": "2024-01-01",
       "target_end": "2025-12-31"
     }

@@ -98,12 +98,34 @@ class GraceFoPersistenceTests(unittest.TestCase):
             coords={"time": pd.date_range("2023-01-01", periods=3, freq="MS"), "lat": [0.0, 60.0], "lon": [0.0]},
         )
         predicted = actual - 1.0
-        metrics, _ = persistence.evaluate(actual, predicted)
+        land_mask = xr.DataArray([[1], [1]], dims=("lat", "lon"), coords={"lat": [0.0, 60.0], "lon": [0.0]})
+        metrics, _ = persistence.evaluate(actual, predicted, land_mask)
         self.assertAlmostEqual(metrics["mae_cm"], 1.0)
         self.assertAlmostEqual(metrics["rmse_cm"], 1.0)
+        self.assertAlmostEqual(metrics["pooled_rmse_cm"], 1.0)
         self.assertAlmostEqual(metrics["area_weighted_mean_temporal_pearson_r"], 1.0)
         self.assertEqual(metrics["evaluated_months"], 3)
         self.assertEqual(metrics["evaluated_land_cells"], 2)
+
+    def test_evaluation_uses_land_60_degree_mask_and_per_cell_rmse(self):
+        actual = xr.DataArray(
+            np.array([[[0.0], [0.0], [0.0]], [[0.0], [0.0], [0.0]]]),
+            dims=("time", "lat", "lon"),
+            coords={"time": pd.date_range("2023-01-01", periods=2, freq="MS"), "lat": [0.0, 30.0, 70.0], "lon": [0.0]},
+        )
+        predicted = actual + np.array([[[0.0], [0.0], [100.0]], [[2.0], [6.0], [100.0]]])
+        land_mask = xr.DataArray(
+            [[1], [1], [1]], dims=("lat", "lon"), coords={"lat": actual.lat, "lon": actual.lon}
+        )
+        metrics, valid = persistence.evaluate(actual, predicted, land_mask)
+        weight_30 = np.cos(np.deg2rad(30.0))
+        expected_per_cell = (np.sqrt(2.0) + weight_30 * np.sqrt(18.0)) / (1.0 + weight_30)
+        expected_pooled = np.sqrt((2.0 + weight_30 * 18.0) / (1.0 + weight_30))
+        self.assertAlmostEqual(metrics["rmse_cm"], expected_per_cell)
+        self.assertAlmostEqual(metrics["pooled_rmse_cm"], expected_pooled)
+        self.assertNotAlmostEqual(metrics["rmse_cm"], metrics["pooled_rmse_cm"])
+        self.assertEqual(metrics["evaluated_land_cells"], 2)
+        self.assertFalse(valid.sel(lat=70.0).any())
 
     def test_shared_split_configuration_is_chronological(self):
         config = persistence.load_config(PROJECT_ROOT / "configs" / "grace_fo_config.yaml")

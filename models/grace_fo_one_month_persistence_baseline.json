@@ -3,7 +3,7 @@
   "model_type": "deterministic_persistence",
   "equation": "predicted_twsa(t) = observed_twsa(t - 1)",
   "target_variable": "lwe_thickness",
-  "modeling_mask": "land_mask == 1",
+  "modeling_mask": "land_mask == 1 and -60 <= latitude <= 60 for evaluation",
   "forecast_horizon_months": 1,
   "study_period": {
     "start": "2019-01-01",

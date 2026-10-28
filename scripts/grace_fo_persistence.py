@@ -130,16 +130,22 @@ def temporal_correlation(actual: xr.DataArray, predicted: xr.DataArray, valid: x
     return correlation, eligible
 
 
-def evaluate(actual: xr.DataArray, predicted: xr.DataArray) -> tuple[dict, xr.DataArray]:
-    """Compute valid-land, latitude-area-weighted metrics in centimeters.
+def evaluate(
+    actual: xr.DataArray, predicted: xr.DataArray, land_mask: xr.DataArray
+) -> tuple[dict, xr.DataArray]:
+    """Compute valid land metrics between 60°S and 60°N in centimeters.
 
     MAE = sum(w * |actual - predicted|) / sum(w)
-    RMSE = sqrt(sum(w * (actual - predicted)^2) / sum(w))
-    where w = cos(latitude) for each valid land-cell/month observation.
+    The primary RMSE is computed through time per grid cell, then averaged
+    over valid cells with w = cos(latitude). The prior pooled RMSE across all
+    valid cell/month observations is retained separately for continuity.
     Pearson r is computed through time per grid cell, then averaged over
     eligible cells with the same latitude weights.
     """
-    valid = np.isfinite(actual) & np.isfinite(predicted)
+    latitude_mask = xr.DataArray(
+        np.abs(actual.lat.values) <= 60, coords={"lat": actual.lat}, dims=("lat",)
+    )
+    valid = np.isfinite(actual) & np.isfinite(predicted) & (land_mask == 1) & latitude_mask
     weights = latitude_weights(actual).broadcast_like(actual)
     weighted_denominator = weights.where(valid).sum(skipna=True)
     if float(weighted_denominator) == 0:
@@ -147,12 +153,19 @@ def evaluate(actual: xr.DataArray, predicted: xr.DataArray) -> tuple[dict, xr.Da
 
     error = actual - predicted
     mae = (weights * np.abs(error)).where(valid).sum(skipna=True) / weighted_denominator
-    rmse = np.sqrt(((weights * error ** 2).where(valid).sum(skipna=True)) / weighted_denominator)
+    pooled_rmse = np.sqrt(((weights * error ** 2).where(valid).sum(skipna=True)) / weighted_denominator)
+    per_cell_rmse = np.sqrt((error ** 2).where(valid).mean(dim="time", skipna=True))
+    eligible_rmse = np.isfinite(per_cell_rmse)
+    cell_weights = latitude_weights(actual).broadcast_like(per_cell_rmse)
+    rmse_weight_sum = cell_weights.where(eligible_rmse).sum(skipna=True)
+    area_weighted_per_cell_rmse = (
+        (cell_weights * per_cell_rmse).where(eligible_rmse).sum(skipna=True) / rmse_weight_sum
+    )
     correlation, eligible_correlation = temporal_correlation(actual, predicted, valid)
-    cell_weights = latitude_weights(actual).broadcast_like(correlation)
-    correlation_weight_sum = cell_weights.where(eligible_correlation).sum(skipna=True)
+    correlation_weights = latitude_weights(actual).broadcast_like(correlation)
+    correlation_weight_sum = correlation_weights.where(eligible_correlation).sum(skipna=True)
     weighted_correlation = (
-        (cell_weights * correlation).where(eligible_correlation).sum(skipna=True) / correlation_weight_sum
+        (correlation_weights * correlation).where(eligible_correlation).sum(skipna=True) / correlation_weight_sum
         if float(correlation_weight_sum) > 0
         else xr.DataArray(np.nan)
     )
@@ -161,8 +174,11 @@ def evaluate(actual: xr.DataArray, predicted: xr.DataArray) -> tuple[dict, xr.Da
     valid_by_cell = valid.any(dim="time")
     metrics = {
         "mae_cm": float(mae),
-        "rmse_cm": float(rmse),
+        "rmse_cm": float(area_weighted_per_cell_rmse),
+        "area_weighted_per_cell_rmse_cm": float(area_weighted_per_cell_rmse),
+        "pooled_rmse_cm": float(pooled_rmse),
         "area_weighted_mean_temporal_pearson_r": float(weighted_correlation),
+        "evaluation_latitude_range_degrees": [-60, 60],
         "evaluated_months": int(valid_by_time.sum()),
         "evaluated_land_cells": int(valid_by_cell.sum()),
         "correlation_eligible_land_cells": int(eligible_correlation.sum()),
@@ -281,7 +297,13 @@ def main() -> None:
     all_metrics = {
         "baseline": "one_month_persistence",
         "forecast_horizon_months": config["forecast"]["horizon_months"],
-        "metric_units": {"mae_cm": "cm", "rmse_cm": "cm", "area_weighted_mean_temporal_pearson_r": "unitless"},
+        "metric_units": {
+            "mae_cm": "cm",
+            "rmse_cm": "cm",
+            "area_weighted_per_cell_rmse_cm": "cm",
+            "pooled_rmse_cm": "cm",
+            "area_weighted_mean_temporal_pearson_r": "unitless",
+        },
         "split_datasets": {},
         "splits": {},
     }
@@ -290,6 +312,7 @@ def main() -> None:
         validate_processed_dataset(dataset, config)
         split_paths = write_split_datasets(dataset, config, args.split_output_dir)
         data = land_modeling_view(dataset, target_variable, land_mask_variable).load()
+        land_mask = dataset[land_mask_variable].load()
 
     all_metrics["split_datasets"] = {name: str(path) for name, path in split_paths.items()}
 
@@ -298,7 +321,7 @@ def main() -> None:
 
     for split_name, split in config["splits"].items():
         actual, predicted = persistence_pairs(data, split["start"], split["end"])
-        metrics, valid = evaluate(actual, predicted)
+        metrics, valid = evaluate(actual, predicted, land_mask)
         metrics["target_start"] = split["start"]
         metrics["target_end"] = split["end"]
         all_metrics["splits"][split_name] = metrics
@@ -317,7 +340,7 @@ def main() -> None:
         "model_type": "deterministic_persistence",
         "equation": "predicted_twsa(t) = observed_twsa(t - 1)",
         "target_variable": target_variable,
-        "modeling_mask": f"{land_mask_variable} == 1",
+        "modeling_mask": f"{land_mask_variable} == 1 and -60 <= latitude <= 60 for evaluation",
         "forecast_horizon_months": config["forecast"]["horizon_months"],
         "study_period": config["study_period"],
         "splits": config["splits"],
@@ -335,7 +358,8 @@ def main() -> None:
     for split_name, metrics in all_metrics["splits"].items():
         print(
             f"{split_name}: MAE={metrics['mae_cm']:.3f} cm | "
-            f"RMSE={metrics['rmse_cm']:.3f} cm | "
+            f"RMSE (area-weighted per-cell)={metrics['rmse_cm']:.3f} cm | "
+            f"pooled RMSE={metrics['pooled_rmse_cm']:.3f} cm | "
             f"r={metrics['area_weighted_mean_temporal_pearson_r']:.3f} | "
             f"months={metrics['evaluated_months']} | cells={metrics['evaluated_land_cells']}"
         )

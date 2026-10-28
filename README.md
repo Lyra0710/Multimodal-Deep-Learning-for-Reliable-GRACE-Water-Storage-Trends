@@ -31,7 +31,15 @@ Create a local `.env` file and add your NASA Earthdata credentials. Do not commi
 cp .env.example .env
 ```
 
-Run the processing script from the repository root to download (or safely reuse) the original NASA source in `data/raw/` and write separate, validated GRACE-FO outputs to `data/processed/`:
+Run the following steps from the repository root, in order. They reproduce the GRACE-FO persistence artifacts used by this project. The notebook `notebooks/GRACE_GRACE_FO_Data_Analysis.ipynb` follows the same order when run top to bottom.
+
+1. Install the GRACE workflow dependencies once:
+
+```bash
+python -m pip install numpy pandas xarray matplotlib PyYAML netCDF4 python-dotenv podaac-data-subscriber
+```
+
+2. Download (or safely reuse) the original NASA source in `data/raw/`, then write the validated processed master and optional land view:
 
 ```bash
 python scripts/grace_fo_processing.py \
@@ -43,7 +51,7 @@ python scripts/grace_fo_processing.py \
 
 The script preserves the raw NASA NetCDF unchanged. A `SKIPPED` download message means the existing source file was reused successfully. The expected validation output covers 84 monthly observations from January 2019 through December 2025 on a 360 × 720 grid. The full `grace_fo_processed.nc` retains all NASA variables; `grace_fo_land_modeling_view.nc` is a separate optional land-only view.
 
-Run the reproducible one-month-ahead persistence baseline with the shared chronological splits:
+3. Run the reproducible one-month-ahead persistence baseline with the shared chronological splits:
 
 ```bash
 python scripts/grace_fo_persistence.py \
@@ -55,7 +63,9 @@ python scripts/grace_fo_persistence.py \
   --model-output models/grace_fo_one_month_persistence_baseline.json
 ```
 
-It saves `grace_fo_persistence_metrics.json`, `grace_fo_chronological_splits.csv`, `grace_fo_one_month_persistence_baseline.json`, and one GRACE-FO actual-versus-predicted figure per split. The split manifest is deterministic and uses no random seed. The saved model specification records the persistence equation and confirms that it has no learned parameters. See [grace_fo_eda.md](grace_fo_eda.md) for the existing notebook's EDA findings, preprocessing decisions, and limitations.
+It saves `grace_fo_persistence_metrics.json`, `grace_fo_chronological_splits.csv`, `grace_fo_one_month_persistence_baseline.json`, and one GRACE-FO actual-versus-predicted figure per split. The split manifest is deterministic and uses no random seed. The saved model specification records the persistence equation and confirms that it has no learned parameters.
+
+Persistence evaluation uses only `land_mask == 1` cells from 60°S through 60°N. The primary `rmse_cm` is the cosine-latitude area-weighted average of per-cell temporal RMSE values; `pooled_rmse_cm` is retained as the legacy pooled cell-month measure. The fixed target-month splits are train (2019-01-01–2022-12-31), validation (2023-01-01–2023-12-31), and test (2024-01-01–2025-12-31). The test output contains 24 target-month coordinates from 2024-01-01 through 2025-12-01.
 
 ### Current GRACE-FO artifacts and Member 4 handoff
 
