@@ -1,209 +1,147 @@
-# Multimodal-Deep-Learning-for-Reliable-GRACE-Water-Storage-Trends
-# DATA 255 — Group 5 Project
+# Multimodal Deep Learning for Reliable GRACE Water Storage Trends
 
-**Project:** Multimodal Deep Learning for Reliable GRACE Water Storage Trends
+DATA 255 Group 5 project.
 
-## Project Overview
+## Project overview
 
-This project investigates whether multimodal deep-learning models can reliably predict changes in terrestrial water storage (TWS) using NASA GRACE/GRACE-FO observations, precipitation, and temperature data.
+This project studies whether terrestrial water-storage anomalies (TWSA) from NASA GRACE and GRACE-FO can be predicted reliably from their recent history and environmental conditions. The prediction target is GRACE/GRACE-FO liquid-water-equivalent thickness anomaly; precipitation and near-surface temperature are the environmental predictors.
 
-We aim to compare different forecasting approaches, analyze water-storage trends, and evaluate model reliability across different environmental conditions.
+The current stage emphasizes data preparation, exploratory and trend analysis, and transparent baseline models. Deep-learning models and multimodal fusion are planned for the next stage.
 
-### Current Scope: Intermediate Project
+## Datasets
 
-For the intermediate submission, we will focus on:
+- **GRACE/GRACE-FO:** JPL monthly mascon equivalent-water-height anomalies. The processing script uses `TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL06.3_V4` (RL06.3Mv04), including `lwe_thickness` in centimeters. [Dataset page](https://podaac.jpl.nasa.gov/dataset/TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL06.3_V4).
+- **GPM IMERG:** monthly precipitation, configured as `GPM_3IMERGM`, version 07. [GES DISC dataset search](https://disc.gsfc.nasa.gov/datasets?keywords=GPM_3IMERGM_07).
+- **MERRA-2:** monthly mean 2 m air temperature, configured as `M2TMNXSLV`, version 5.12.4. [GES DISC dataset search](https://disc.gsfc.nasa.gov/datasets?keywords=M2TMNXSLV_5.12.4).
 
-- Data collection and preprocessing
-- Exploratory Data Analysis (EDA)
-- Statistical trend analysis
-- Baseline model implementation and evaluation
-- Literature review
+Original downloads belong in `data/raw/` (with optional `imerg/` and `merra2/` subdirectories). Generated NetCDF files belong in `data/processed/`. Large source data and the combined aligned dataset are not included in this repository.
 
-Advanced deep-learning models (LSTM, TCN, Transformer), multimodal fusion experiments, uncertainty estimation, and explainability will be addressed in the final project.
+## Repository structure
 
----
-
-## GRACE-FO Download, Preprocessing, and Persistence Baseline
-
-Create a local `.env` file and add your NASA Earthdata credentials. Do not commit `.env`.
-
-```bash
-cp .env.example .env
+```text
+configs/                         shared split and P/T settings
+contributions/combined_dataset_analysis_ridge/
+  Combined_Dataset_Analysis_Ridge.ipynb
+  scripts/combined_ridge.py      combined-data Ridge workflow
+data/raw/                        local NASA source files (not committed)
+data/processed/                  generated analysis/model inputs
+models/                          saved baseline specifications
+notebooks/                       interactive GRACE and trend analyses
+results/figures/                 saved figures
+results/metrics/                 saved metric tables
+scripts/
+  grace_fo_processing.py         GRACE-FO download and preprocessing
+  grace_fo_persistence.py        one-month persistence baseline
+  p_t_tws_data.py                GRACE + precipitation + temperature alignment
+  p_t_tws_analysis.py            driver and trend analysis
+  p_t_tws_baselines.py           regression and spatial-CV baselines
+tests/                           root workflow tests
 ```
 
-Run the following steps from the repository root, in order. They reproduce the GRACE-FO persistence artifacts used by this project. The notebook `notebooks/GRACE_GRACE_FO_Data_Analysis.ipynb` follows the same order when run top to bottom.
+## Work completed
 
-1. Install the GRACE workflow dependencies once:
+- GRACE-FO preprocessing, EDA, chronological split files, and a one-month persistence baseline.
+- Statistical trend analysis and an autoregressive baseline in [Statistical_Trend_Analysis.ipynb](notebooks/Statistical_Trend_Analysis.ipynb).
+- Precipitation/temperature alignment, driver analysis, and temporal and geographic regression baselines.
+- Combined-data exploratory analysis and a per-cell Ridge baseline in [Combined_Dataset_Analysis_Ridge.ipynb](contributions/combined_dataset_analysis_ridge/Combined_Dataset_Analysis_Ridge.ipynb).
 
-```bash
-python -m pip install numpy pandas xarray matplotlib PyYAML netCDF4 python-dotenv podaac-data-subscriber
-```
+Saved figures and summaries are in `results/figures/` and `results/metrics/`; the combined Ridge contribution also contains its own CSV summaries and figures. See the current implementations: [GRACE preprocessing](scripts/grace_fo_processing.py), [persistence](scripts/grace_fo_persistence.py), [P/T alignment](scripts/p_t_tws_data.py), [P/T analysis](scripts/p_t_tws_analysis.py), [P/T baselines](scripts/p_t_tws_baselines.py), and [combined Ridge](contributions/combined_dataset_analysis_ridge/scripts/combined_ridge.py).
 
-2. Download (or safely reuse) the original NASA source in `data/raw/`, then write the validated processed master and optional land view:
+## How to reproduce the results
 
-```bash
-python scripts/grace_fo_processing.py \
-  --download-dir data/raw \
-  --output data/processed/grace_fo_processed.nc \
-  --land-view-output data/processed/grace_fo_land_modeling_view.nc \
-  --env-file .env
-```
+1. Use Python 3.10+ and work from the repository root. Create and activate an environment, then install the packages used by the root workflows:
 
-The script preserves the raw NASA NetCDF unchanged. A `SKIPPED` download message means the existing source file was reused successfully. The expected validation output covers 84 monthly observations from January 2019 through December 2025 on a 360 × 720 grid. The full `grace_fo_processed.nc` retains all NASA variables; `grace_fo_land_modeling_view.nc` is a separate optional land-only view.
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   python -m pip install numpy pandas xarray matplotlib PyYAML netCDF4 python-dotenv podaac-data-subscriber earthaccess scipy scikit-learn h5netcdf
+   ```
 
-3. Run the reproducible one-month-ahead persistence baseline with the shared chronological splits:
+   The combined Ridge package has its own pinned dependency ranges in [requirements.txt](contributions/combined_dataset_analysis_ridge/requirements.txt). Install those as well when reproducing that workflow:
 
-```bash
-python scripts/grace_fo_persistence.py \
-  --input data/processed/grace_fo_processed.nc \
-  --config configs/grace_fo_config.yaml \
-  --metrics-dir results/metrics \
-  --figures-dir results/figures \
-  --split-output-dir data/processed \
-  --model-output models/grace_fo_one_month_persistence_baseline.json
-```
+   ```bash
+   python -m pip install -r contributions/combined_dataset_analysis_ridge/requirements.txt
+   ```
 
-It saves `grace_fo_persistence_metrics.json`, `grace_fo_chronological_splits.csv`, `grace_fo_one_month_persistence_baseline.json`, and one GRACE-FO actual-versus-predicted figure per split. The split manifest is deterministic and uses no random seed. The saved model specification records the persistence equation and confirms that it has no learned parameters.
+2. To download data, create `.env` from the checked-in template and provide NASA Earthdata credentials. For IMERG and MERRA-2 access, authorize the **NASA GESDISC DATA ARCHIVE** application in the Earthdata profile.
 
-Persistence evaluation uses only `land_mask == 1` cells from 60°S through 60°N. The primary `rmse_cm` is the cosine-latitude area-weighted average of per-cell temporal RMSE values; `pooled_rmse_cm` is retained as the legacy pooled cell-month measure. The fixed target-month splits are train (2019-01-01–2022-12-31), validation (2023-01-01–2023-12-31), and test (2024-01-01–2025-12-31). The test output contains 24 target-month coordinates from 2024-01-01 through 2025-12-01.
+   ```bash
+   cp .env.example .env
+   ```
 
-### Current GRACE-FO artifacts and Member 4 handoff
+   You may keep the repository in local storage or in Google Drive. If your data live elsewhere, either pass that location through the commands below where an argument is available, or update the `data.raw_dir` and `data.cache_dir` paths in [p_t_tws_config.yaml](configs/p_t_tws_config.yaml). Keep the GRACE source, cache, and outputs on storage with sufficient space.
 
-Member 4 should directly load these ready-to-use chronological GRACE-FO target-month datasets:
+3. Build the 2019–2025 GRACE-FO master file and optional land-only view. This command downloads the source when it is not already in `data/raw/`:
 
-- `data/processed/grace_fo_train.nc`: January 2019–December 2022 target months.
-- `data/processed/grace_fo_validation.nc`: January–December 2023 target months.
-- `data/processed/grace_fo_test.nc`: January 2024–December 2025 target months.
+   ```bash
+   python scripts/grace_fo_processing.py \
+     --download-dir data/raw \
+     --output data/processed/grace_fo_processed.nc \
+     --land-view-output data/processed/grace_fo_land_modeling_view.nc \
+     --env-file .env
+   ```
 
-Each split retains the native 0.5-degree grid and all needed NASA variables: `lwe_thickness`, `uncertainty`, `land_mask`, `mascon_ID`, `scale_factor`, `GAD`, coordinate bounds, and `original_time`. The split files are deterministic chronological subsets—no random seed or random sampling was used.
+   If the original NetCDF is already stored locally, replace `--download-dir data/raw` with `--input /path/to/original.nc`.
 
-Supporting GRACE-FO artifacts are:
+4. Create the GRACE-FO chronological handoff files and persistence results:
 
-- `configs/grace_fo_config.yaml`: fixed chronological target-month boundaries—train (2019–2022), validation (2023), and test (2024–2025).
-- `results/metrics/grace_fo_chronological_splits.csv`: direct month-by-month split membership, prior persistence input month, and persistence eligibility. It is deterministic; no random seed was used.
-- `results/metrics/grace_fo_persistence_metrics.json`: one-month persistence baseline metrics.
-- `models/grace_fo_one_month_persistence_baseline.json`: the saved deterministic model specification.
-- `results/figures/grace_fo_persistence_*_actual_vs_predicted.png`: baseline actual-versus-predicted figures.
+   ```bash
+   python scripts/grace_fo_persistence.py \
+     --input data/processed/grace_fo_processed.nc \
+     --config configs/grace_fo_config.yaml \
+     --metrics-dir results/metrics \
+     --figures-dir results/figures \
+     --split-output-dir data/processed \
+     --model-output models/grace_fo_one_month_persistence_baseline.json
+   ```
 
-`data/processed/grace_fo_processed.nc` remains the full processed master for reproducibility and pipeline reruns. Member 4 does not need the raw NASA NetCDF or the optional `grace_fo_land_modeling_view.nc`. For final uncertainty and explainability work, Member 4 will also need the eventual model predictions and integrated environmental inputs from the relevant team members.
+5. Build the aligned GRACE/GRACE-FO, IMERG, and MERRA-2 file, then run driver analysis and baselines. The first command reuses a `GRCTellus*CRI*.nc` file in `data/raw/` or downloads it; it streams IMERG/MERRA-2 by default and caches reduced driver data under `data/processed/p_t_tws_cache/`.
 
----
+   ```bash
+   python scripts/p_t_tws_data.py --config configs/p_t_tws_config.yaml --output data/processed/p_t_tws_aligned_0.5deg.nc --env-file .env
 
-## Precipitation & Temperature Drivers of TWS and Climate-Driven Baselines
+   python scripts/p_t_tws_analysis.py --input data/processed/p_t_tws_aligned_0.5deg.nc --config configs/p_t_tws_config.yaml --metrics-dir results/metrics --figures-dir results/figures --maps-dir data/processed
 
-This stage puts GRACE/GRACE-FO TWS (2002-04 onward), GPM IMERG precipitation, and MERRA-2 2 m air temperature on one 0.5° grid and calendar. It then analyzes P/T trends and their relationship with TWS, and evaluates the baselines the deep-learning models must beat. Train/validation/test dates are read from `configs/grace_fo_config.yaml`, so these baselines use exactly the same months as the persistence baseline. All other settings live in `configs/p_t_tws_config.yaml`.
+   python scripts/p_t_tws_baselines.py --input data/processed/p_t_tws_aligned_0.5deg.nc --config configs/p_t_tws_config.yaml --metrics-dir results/metrics --figures-dir results/figures --predictions-output data/processed/p_t_tws_baseline_predictions.nc --model-output models/p_t_tws_baselines.json
+   ```
 
-The GRACE CRI NetCDF is reused from `data/raw/` (or downloaded with `grace_fo_processing.py`'s downloader). IMERG and MERRA-2 are streamed with `earthaccess` using the same `.env` credentials. For these GES DISC products, also authorize the *NASA GESDISC DATA ARCHIVE* application in your Earthdata profile. Reduced driver cubes are cached in `data/processed/p_t_tws_cache/`; the first run takes about an hour per product.
+6. For the combined Ridge workflow, use the aligned file created in step 5. It is required input and is not tracked in Git. The command writes a separate rerun directory:
 
-```bash
-python -m pip install earthaccess pymannkendall h5netcdf scikit-learn joblib
+   ```bash
+   python contributions/combined_dataset_analysis_ridge/scripts/combined_ridge.py \
+     --input data/processed/p_t_tws_aligned_0.5deg.nc \
+     --config configs/grace_fo_config.yaml \
+     --output-dir contributions/combined_dataset_analysis_ridge/rerun_results
+   ```
 
-python scripts/p_t_tws_data.py \
-  --config configs/p_t_tws_config.yaml \
-  --output data/processed/p_t_tws_aligned_0.5deg.nc \
-  --env-file .env
+   Open [GRACE_GRACE_FO_Data_Analysis.ipynb](notebooks/GRACE_GRACE_FO_Data_Analysis.ipynb), [P_T_TWS_Drivers_and_Baselines.ipynb](notebooks/P_T_TWS_Drivers_and_Baselines.ipynb), or [Statistical_Trend_Analysis.ipynb](notebooks/Statistical_Trend_Analysis.ipynb) for the corresponding interactive analyses. The notebooks require their source data and, where applicable, Earthdata credentials; run their cells manually in order.
 
-python scripts/p_t_tws_analysis.py \
-  --input data/processed/p_t_tws_aligned_0.5deg.nc \
-  --config configs/p_t_tws_config.yaml \
-  --metrics-dir results/metrics \
-  --figures-dir results/figures \
-  --maps-dir data/processed
+   Root tests can be run with:
 
-python scripts/p_t_tws_baselines.py \
-  --input data/processed/p_t_tws_aligned_0.5deg.nc \
-  --config configs/p_t_tws_config.yaml \
-  --metrics-dir results/metrics \
-  --figures-dir results/figures \
-  --predictions-output data/processed/p_t_tws_baseline_predictions.nc \
-  --model-output models/p_t_tws_baselines.json
-```
+   ```bash
+   python -m unittest discover -s tests
+   ```
 
-[notebooks/P_T_TWS_Drivers_and_Baselines.ipynb](notebooks/P_T_TWS_Drivers_and_Baselines.ipynb) runs the same steps interactively, with the methodology explained per section.
+## Evaluation setup
 
-- Anomalies use a monthly climatology fitted on the training split only. Pixels are land (`land_mask`), |lat| ≤ 60°, finite P/T, and ≥ 70% of GRACE months observed.
-- Trends: Mann–Kendall with Hamed–Rao correction, Theil–Sen slopes, and Benjamini–Hochberg FDR. Correlations use an autocorrelation-adjusted effective sample size.
-- Temporal baselines: climatology, persistence, seasonal persistence, per-pixel ridge (seasonal + trend, P/T drivers, ARX), and pooled gradient boosting on seasonal-trend residuals. Hyperparameters are chosen on validation, models are refit on train + validation, and all are scored once on identical test cells.
-- Geographic baselines: pooled ridge and gradient boosting under 10° × 10° spatial block cross-validation.
+The main GRACE-FO persistence workflow forecasts one target month from the prior month. Its configured splits are train (2019–2022), validation (2023), and test (2024–2025). Land evaluation is limited to 60°S–60°N. Its primary RMSE is temporal RMSE computed per grid cell and then averaged using cosine-latitude weights.
 
-Outputs:
+The precipitation/temperature temporal baselines read the same split configuration, but their exact valid grid cells depend on aligned-data availability and the shared finite-prediction mask. The combined Ridge contribution uses the same nominal split boundaries, but its saved run covers January 2024–September 2025 because the supplied combined input ended in September; it reports both pooled and per-cell aggregation tables. Do not compare scores across workflows without matching dates, valid cells, and RMSE aggregation.
 
-- `data/processed/p_t_tws_aligned_0.5deg.nc`: aligned TWS, P, T, valid mask, and training-climatology anomalies for teammates.
-- `data/processed/p_t_tws_baseline_predictions.nc`: every baseline's gridded prediction plus `test_eval_mask` and `spatial_fold`. Score deep-learning predictions on exactly these cells with `p_t_tws_baselines.evaluate_predictions`.
-- `data/processed/p_t_tws_trend_maps.nc`, `data/processed/p_t_tws_correlation_maps.nc`: per-pixel trend and correlation maps.
-- `results/metrics/p_t_tws_baseline_metrics_gracefo.csv`, `results/metrics/p_t_tws_baseline_metrics_spatial_cv.csv`, `results/metrics/p_t_tws_correlation_summary.csv`, `results/metrics/p_t_tws_trend_summary.csv`.
-- `results/figures/p_t_tws_*.png`: driver-analysis and baseline figures.
-- `models/p_t_tws_baselines.json`: feature sets, selected ridge strengths, gradient-boosting iterations, splits, and seed (fitted per-pixel weights are not stored).
+## Next steps
 
-Run all unit tests from the repository root with `python -m unittest discover -s tests`.
+- Implement LSTM, TCN, and temporal Transformer models.
+- Investigate early and late multimodal fusion.
+- Evaluate a gridded ConvLSTM model, as suggested in proposal feedback.
+- Test geographic, temporal, and GRACE-to-GRACE-FO generalization.
+- Evaluate prediction uncertainty and Integrated Gradients explanations.
+- Verify leakage prevention and compare final models against the existing baselines.
 
----
+## References
 
-## Statistical Trend Analysis and Autoregressive Baseline
+- [JPL GRACE/GRACE-FO Mascon CRI RL06.3Mv04](https://podaac.jpl.nasa.gov/dataset/TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL06.3_V4)
+- [GPM IMERG at NASA GES DISC](https://disc.gsfc.nasa.gov/datasets?keywords=GPM_3IMERGM_07)
+- [MERRA-2 at NASA GES DISC](https://disc.gsfc.nasa.gov/datasets?keywords=M2TMNXSLV_5.12.4)
+- [Project repository](https://github.com/Lyra0710/Multimodal-Deep-Learning-for-Reliable-GRACE-Water-Storage-Trends)
 
-[notebooks/Statistical_Trend_Analysis.ipynb](notebooks/Statistical_Trend_Analysis.ipynb) runs on Google Colab (no GPU needed). It downloads the GRACE/GRACE-FO JPL mascon CRI file with `earthaccess`, or reuses it if already present, and prompts for Earthdata credentials at runtime.
-
-- Trends: deseasonalized per-pixel Mann–Kendall with Hamed–Rao correction (first 3 lags), Sen's slope, and Benjamini–Hochberg FDR, for 2019–2025 and the full 2002–2025 record. Land cells use the in-file `land_mask`, |lat| ≤ 60°, with cos(lat) area weights.
-- AR baseline: per-pixel AR(p), p ≤ 3 chosen by AIC, one-month-ahead. AIC needs no validation set, so the model is fit on train + validation (2019–2023) and scored on test (2024–2025), the same test months as the other baselines. It is compared against persistence and climatology using MAE, RMSE, correlation, and anomaly correlation. RMSE is computed per cell, then area-weighted.
-
-Outputs:
-
-- `results/metrics/stat_trend_*.csv`: significance summary, regional trends, AR metrics (global and regional), and a false-positive check on synthetic series.
-- `results/figures/stat_trend_*.png`: trend maps for both windows, short- vs long-record trends, regional trends, significance by method, and the AR skill map.
-- `data/processed/stat_trend_outputs.nc` (compressed, 4 MB): gridded Sen's slopes with confidence bounds, Mann–Kendall tau/p/q and significance for both windows, AR order, AR test predictions (2024–2025), and the deseasonalized TWS anomalies (2019–2025), on the |lat| ≤ 60° 0.5° grid. The notebook writes it uncompressed as `outputs/trend_ar_outputs.nc` (88 MB).
-
----
-
-## Folder Guidelines
-
-### `data/`
-
-Contains datasets used throughout the project.
-
-- `raw/`: Original downloaded NASA datasets (GRACE/GRACE-FO, GPM IMERG, MERRA-2).
-- `processed/`: Cleaned, standardized, and merged datasets ready for analysis and modeling.
-
-**Important:** Do not commit raw NASA downloads. The designated GRACE-FO handoff artifacts are `data/processed/grace_fo_train.nc`, `data/processed/grace_fo_validation.nc`, and `data/processed/grace_fo_test.nc`; keep other large duplicate outputs in shared storage and document their sources and download instructions.
-
-### `scripts/`
-
-Contains reusable Python scripts for data preprocessing, analysis, modeling, and evaluation.
-
-Each member should place their implementation in the relevant `.py` files.
-
-Keep scripts organized and avoid duplicating functionality already implemented by another member.
-
-### `notebooks/`
-
-Contains Jupyter notebooks for exploratory analysis, experiments, and visualizations.
-
-Each member should primarily work in their assigned notebook.
-
-Use notebooks to demonstrate the analysis and results. Move reusable functions into `scripts/` whenever practical.
-
-### `models/`
-
-Contains trained model files, such as `.pkl` or `.joblib`.
-
-Large model files should not be committed to GitHub.
-
-### `results/`
-
-Contains outputs generated from the experiments.
-
-- `figures/`: EDA plots, trend maps, actual-vs-predicted plots, and other visualizations.
-- `metrics/`: Model evaluation results, including MAE, RMSE, correlation, and comparison tables.
-
-Use descriptive filenames, such as `grace_missing_months.png` or `persistence_metrics.csv`.
-
-### `reports/`
-
-Contains written documentation and report materials.
-
-Each member is responsible for individually reviewing at least 13 relevant research papers for the intermediate submission. Use APA citation format and write the survey in your own words.
-
-### Combined dataset analysis and Ridge baseline
-
-The [combined dataset contribution](contributions/combined_dataset_analysis_ridge/README.md) includes the analysis notebook, source code, tests, figures, and evaluation tables. For the group RMSE convention, use its `per_cell_test_metrics.csv`. These results cover January 2024–September 2025; cross-model comparisons require matching test dates and valid geographic cells.
-
----
+The project proposal/intermediate report is not present in this repository, so no repository link can be provided for it.
