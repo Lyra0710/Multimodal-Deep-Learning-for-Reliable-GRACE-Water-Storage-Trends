@@ -143,5 +143,3 @@ The precipitation/temperature temporal baselines read the same split configurati
 - [GPM IMERG at NASA GES DISC](https://disc.gsfc.nasa.gov/datasets?keywords=GPM_3IMERGM_07)
 - [MERRA-2 at NASA GES DISC](https://disc.gsfc.nasa.gov/datasets?keywords=M2TMNXSLV_5.12.4)
 - [Project repository](https://github.com/Lyra0710/Multimodal-Deep-Learning-for-Reliable-GRACE-Water-Storage-Trends)
-
-The project proposal/intermediate report is not present in this repository, so no repository link can be provided for it.
