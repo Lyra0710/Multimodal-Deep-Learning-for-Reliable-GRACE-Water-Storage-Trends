@@ -129,6 +129,21 @@ Run all unit tests from the repository root with `python -m unittest discover -s
 
 ---
 
+## Statistical Trend Analysis and Autoregressive Baseline
+
+[notebooks/Statistical_Trend_Analysis.ipynb](notebooks/Statistical_Trend_Analysis.ipynb) runs on Google Colab (no GPU needed). It downloads the GRACE/GRACE-FO JPL mascon CRI file with `earthaccess`, or reuses it if already present, and prompts for Earthdata credentials at runtime.
+
+- Trends: deseasonalized per-pixel Mann–Kendall with Hamed–Rao correction (first 3 lags), Sen's slope, and Benjamini–Hochberg FDR, for 2019–2025 and the full 2002–2025 record. Land cells use the in-file `land_mask`, |lat| ≤ 60°, with cos(lat) area weights.
+- AR baseline: per-pixel AR(p), p ≤ 3 chosen by AIC, one-month-ahead. AIC needs no validation set, so the model is fit on train + validation (2019–2023) and scored on test (2024–2025), the same test months as the other baselines. It is compared against persistence and climatology using MAE, RMSE, correlation, and anomaly correlation. RMSE is computed per cell, then area-weighted.
+
+Outputs:
+
+- `results/metrics/stat_trend_*.csv`: significance summary, regional trends, AR metrics (global and regional), and a false-positive check on synthetic series.
+- `results/figures/stat_trend_*.png`: trend maps for both windows, short- vs long-record trends, regional trends, significance by method, and the AR skill map.
+- `data/processed/stat_trend_outputs.nc` (compressed, 4 MB): gridded Sen's slopes with confidence bounds, Mann–Kendall tau/p/q and significance for both windows, AR order, AR test predictions (2024–2025), and the deseasonalized TWS anomalies (2019–2025), on the |lat| ≤ 60° 0.5° grid. The notebook writes it uncompressed as `outputs/trend_ar_outputs.nc` (88 MB).
+
+---
+
 ## Folder Guidelines
 
 ### `data/`

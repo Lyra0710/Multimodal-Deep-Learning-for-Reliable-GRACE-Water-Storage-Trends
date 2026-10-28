@@ -1,0 +1,4 @@
+,MAE (cm),RMSE (cm),Correlation,Anomaly correlation
+AR (this baseline),2.355,2.975,0.813,0.626
+Persistence (reference),3.437,4.201,0.764,0.595
+Climatology (reference),6.061,6.863,0.607,

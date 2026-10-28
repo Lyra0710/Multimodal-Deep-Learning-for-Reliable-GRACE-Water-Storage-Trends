@@ -1,0 +1,19 @@
+Region,Model,MAE (cm),RMSE (cm),Correlation
+Northern India,AR (this baseline),4.19,5.47,0.9
+Northern India,Persistence (reference),6.41,8.31,0.77
+Northern India,Climatology (reference),9.52,11.07,0.82
+"Central Valley, California",AR (this baseline),2.7,3.61,0.91
+"Central Valley, California",Persistence (reference),4.26,5.01,0.83
+"Central Valley, California",Climatology (reference),5.12,6.14,0.81
+Middle East (Tigris–Euphrates),AR (this baseline),1.58,2.26,0.87
+Middle East (Tigris–Euphrates),Persistence (reference),1.96,2.29,0.89
+Middle East (Tigris–Euphrates),Climatology (reference),7.85,8.78,0.54
+Amazon,AR (this baseline),5.96,7.37,0.97
+Amazon,Persistence (reference),14.94,17.14,0.83
+Amazon,Climatology (reference),15.04,18.01,0.91
+East Africa (Lake Victoria),AR (this baseline),3.1,3.98,0.81
+East Africa (Lake Victoria),Persistence (reference),4.56,5.49,0.64
+East Africa (Lake Victoria),Climatology (reference),16.08,16.8,0.67
+Northern Great Plains,AR (this baseline),1.71,2.14,0.8
+Northern Great Plains,Persistence (reference),2.01,2.53,0.74
+Northern Great Plains,Climatology (reference),4.21,4.92,0.61
