@@ -393,9 +393,12 @@ def align_products(
 ) -> xr.Dataset:
     """Put TWS, P, and T on one calendar and mask, and add training-climatology anomalies.
 
-    Mask: land, |lat| <= latitude limit, finite P and T in every month, and at least
-    min_tws_fraction of GRACE months observed. TWS stays NaN before tws_start and in
-    GRACE gaps, including the GRACE -> GRACE-FO gap.
+    ``mask`` preserves the full-record eligibility used by the existing baselines:
+    land, |lat| <= latitude limit, finite P and T in every month, and at least
+    min_tws_fraction of GRACE months observed. ``training_mask`` applies those same
+    availability rules using training months only, so a model developer can select
+    spatial cells without consulting validation or test availability. TWS stays NaN
+    before tws_start and in GRACE gaps, including the GRACE -> GRACE-FO gap.
     """
     data = config["data"]
     last = min(pd.Timestamp(series.time.values[-1]) for series in (tws, precip, t2m))
@@ -406,19 +409,32 @@ def align_products(
         {"tws": tws.reindex(time=times), "precip": precip.reindex(time=times), "t2m": t2m.reindex(time=times)}
     ).sel(lat=slice(-limit, limit))
     aligned["tws"] = aligned["tws"].where(aligned.time >= pd.Timestamp(data["tws_start"]))
+    land = land.sel(lat=aligned.lat, lon=aligned.lon)
     tws_fraction = aligned["tws"].sel(time=slice(data["tws_start"], None)).notnull().mean("time")
     aligned["mask"] = (
-        land.sel(lat=aligned.lat, lon=aligned.lon)
+        land
         & aligned["precip"].notnull().all("time")
         & aligned["t2m"].notnull().all("time")
         & (tws_fraction >= data["min_tws_fraction"])
     )
     train = config["splits"]["train"]
+    train_data = aligned.sel(time=slice(train["start"], train["end"]))
+    aligned["training_mask"] = (
+        land
+        & train_data["precip"].notnull().all("time")
+        & train_data["t2m"].notnull().all("time")
+        & (train_data["tws"].notnull().mean("time") >= data["min_tws_fraction"])
+    )
     aligned.attrs.update(
         description="Group 5 aligned GRACE/GRACE-FO TWS, IMERG precipitation, MERRA-2 T2M",
         anomalies=f"monthly climatology over training period {train['start'][:7]}–{train['end'][:7]}",
         grid_deg=data["resolution_deg"],
         tws_start=data["tws_start"],
+        mask_note="Full-record availability mask retained for existing baseline reproducibility.",
+        training_mask_note=(
+            f"Training-only availability mask using {train['start'][:7]}–{train['end'][:7]}; "
+            "use this static mask for leakage-free model cell selection."
+        ),
     )
 
     cube = PixelCube.from_dataset(aligned)

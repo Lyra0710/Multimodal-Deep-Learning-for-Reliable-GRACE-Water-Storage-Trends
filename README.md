@@ -47,6 +47,12 @@ tests/                           root workflow tests
 
 Saved figures and summaries are in `results/figures/` and `results/metrics/`; the combined Ridge contribution also contains its own CSV summaries and figures. See the current implementations: [GRACE preprocessing](scripts/grace_fo_processing.py), [persistence](scripts/grace_fo_persistence.py), [P/T alignment](scripts/p_t_tws_data.py), [P/T analysis](scripts/p_t_tws_analysis.py), [P/T baselines](scripts/p_t_tws_baselines.py), and [combined Ridge](contributions/combined_dataset_analysis_ridge/scripts/combined_ridge.py).
 
+## Shared data handoff
+
+The GRACE-FO master is `data/processed/grace_fo_processed.nc`; it contains monthly `lwe_thickness` (cm), `uncertainty`, `land_mask`, `mascon_ID`, `scale_factor`, and `GAD` on `time × lat × lon`. The chronological target-month handoff files are `grace_fo_train.nc` (2019–2022), `grace_fo_validation.nc` (2023), and `grace_fo_test.nc` (2024–2025). Use the master—not independently opened split files—when an input window crosses a split boundary.
+
+The multimodal handoff produced by `p_t_tws_data.py` is `data/processed/p_t_tws_aligned_0.5deg.nc`. It contains `tws` (cm), `precip` (mm/month), `t2m` (degC), training-climatology anomaly versions of those fields, and two static masks. `mask` preserves the existing full-record baseline eligibility; `training_mask` uses only the configured training period and is the appropriate static cell-selection mask for leakage-free model development. Per-month finite-value checks are still required when constructing each model's inputs and targets. The aligned file is intentionally untracked because of its size; obtain the exact shared artifact or reproduce it before beginning multimodal development.
+
 ## How to reproduce the results
 
 1. Use Python 3.10+ and work from the repository root. Create and activate an environment, then install the packages used by the root workflows:

@@ -88,6 +88,23 @@ class PTTwsAlignmentTests(unittest.TestCase):
         np.testing.assert_allclose(climatology["tws"], changed["tws"])
         self.assertTrue(np.isnan(cube.tws[cube.times.get_loc(pd.Timestamp("2018-03-01"))]).all())
 
+    def test_training_mask_does_not_use_post_training_availability(self):
+        config = synthetic_config()
+        aligned = synthetic_aligned(config)
+        land = xr.DataArray(
+            np.ones((aligned.sizes["lat"], aligned.sizes["lon"]), bool),
+            dims=("lat", "lon"),
+            coords={"lat": aligned.lat, "lon": aligned.lon},
+        )
+        precip_with_test_gap = aligned["precip"].copy()
+        precip_with_test_gap.loc[{"time": "2024-01-01"}] = np.nan
+        re_aligned = alignment.align_products(
+            aligned["tws"], land, precip_with_test_gap, aligned["t2m"], config
+        )
+
+        np.testing.assert_array_equal(re_aligned["training_mask"], aligned["training_mask"])
+        self.assertFalse(re_aligned["mask"].any())
+
     def test_pixel_cube_round_trips_maps(self):
         aligned = synthetic_aligned(synthetic_config())
         cube = alignment.PixelCube.from_dataset(aligned)
