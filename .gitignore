@@ -1,4 +1,5 @@
 annotated-Group5_Project_Proposal.docx.pdf
+.DS_Store
 .env
 .env.*
 !.env.example
