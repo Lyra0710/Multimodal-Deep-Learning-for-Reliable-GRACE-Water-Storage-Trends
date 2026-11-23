@@ -1,0 +1,13 @@
+{
+  "model": "TCN late fusion (GRACE | P,T)",
+  "branches": [
+    "TCN (GRACE only)",
+    "TCN (P,T only)"
+  ],
+  "combiner": "area-weighted linear stacking",
+  "fit_on": "validation predictions of the train-only branch models",
+  "intercept_cm": -0.015662321549578546,
+  "weight[TCN (GRACE only)]": 0.9944100819955124,
+  "weight[TCN (P,T only)]": 0.038535683107093543,
+  "val_rmse_cm_in_sample": 3.8422780258315323
+}

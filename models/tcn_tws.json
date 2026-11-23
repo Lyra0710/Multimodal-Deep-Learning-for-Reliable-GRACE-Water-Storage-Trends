@@ -1,0 +1,50 @@
+{
+  "model": "TCN (GRACE only)",
+  "input": "data/processed/p_t_tws_aligned_0.5deg.nc",
+  "sources": [
+    "tws"
+  ],
+  "input_channels": [
+    "tws_prev",
+    "tws_prev_observed",
+    "month_sin",
+    "month_cos"
+  ],
+  "timing": "nowcast",
+  "lookback_months": 12,
+  "kernel_size": 3,
+  "dilations": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "receptive_field": 61,
+  "weight_decay": 0.0001,
+  "batch_size": 2048,
+  "selected_hyperparameters": {
+    "channels": 32,
+    "dropout": 0.1,
+    "learning_rate": 0.001
+  },
+  "refit_epochs": 8,
+  "scaling_train_validation": {
+    "tws_mean_cm": -2.576591468710789,
+    "tws_std_cm": 21.407371502909537
+  },
+  "splits": {
+    "train": {
+      "start": "2019-01-01",
+      "end": "2022-12-31"
+    },
+    "validation": {
+      "start": "2023-01-01",
+      "end": "2023-12-31"
+    },
+    "test": {
+      "start": "2024-01-01",
+      "end": "2025-12-31"
+    }
+  },
+  "parameters": 22337
+}
