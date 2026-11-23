@@ -122,10 +122,12 @@ The multimodal handoff produced by `p_t_tws_data.py` is `data/processed/p_t_tws_
      --output-dir contributions/combined_dataset_analysis_ridge/rerun_results
    ```
 
-7. Train and evaluate the LSTM ensemble (needs PyTorch: `python -m pip install torch`). It reads the step-4 split files, caches them as `data/processed/lstm_cache.npz`, and takes about 4 minutes on a GPU. The reported results come from a Google Colab T4 GPU run, saved with its outputs in [LSTM_Colab_Run.ipynb](notebooks/LSTM_Colab_Run.ipynb):
+7. Train and evaluate the LSTM ensemble (needs PyTorch: `python -m pip install torch`). The first command reads the step-4 split files; the other two read the step-5 aligned file for the shared model comparison. Each takes about 4 minutes on a GPU. The reported results come from a Google Colab T4 GPU run, saved with its outputs in [LSTM_Colab_Run.ipynb](notebooks/LSTM_Colab_Run.ipynb):
 
    ```bash
    python scripts/lstm_forecast.py --config configs/lstm_config.yaml
+   python scripts/lstm_forecast.py --config configs/lstm_aligned_grace.yaml
+   python scripts/lstm_forecast.py --config configs/lstm_aligned_combined.yaml
    ```
 
    [LSTM_Forecast_and_Uncertainty.ipynb](notebooks/LSTM_Forecast_and_Uncertainty.ipynb) runs the same script and shows the results; it also runs on Google Colab (GPU optional).
@@ -159,6 +161,36 @@ Test results use the persistence workflow's months (2024-01 to 2025-12), cells a
 | Climatology | 6.642 | 7.440 | 0.601 |
 
 The LSTM has lower RMSE than persistence over 89% of the land area and lower than AR over 73%; it is weaker than seasonal persistence in the Amazon and East Africa. RMSE is 2.93 cm in 2024 and 2.72 cm in 2025. Calibrated 50/80/90/95% intervals cover 49.3/80.1/90.0/94.9% of test values (mean 90% width 10.1 cm). Predicted σ tracks the actual error (Spearman ρ = 0.59), and about 99% of the predicted variance is aleatoric. Outputs are `results/metrics/lstm_*`, `results/figures/lstm_*` and `models/lstm/`.
+
+### LSTM runs on the aligned file (shared comparison)
+
+Two further runs use the aligned GRACE/IMERG/MERRA-2 file from step 5, its cell mask, months from 2018 as input history, and the test period 2024-01 to 2025-09 (the file ends in September 2025). [lstm_aligned_grace.yaml](configs/lstm_aligned_grace.yaml) uses GRACE TWS only. [lstm_aligned_combined.yaml](configs/lstm_aligned_combined.yaml) adds past precipitation and temperature anomalies to each monthly input (early fusion). Both are strict forecasts: every input comes from the 12 months before the target. Model and training settings are unchanged. Test predictions with calibrated 90% bounds are saved in `results/predictions/` on the evaluator grid (`time × lat × lon`, cm).
+
+Scores on the aligned file's 46,325 cells, 21 test months:
+
+| Model | MAE (cm) | RMSE (cm) | Pearson r | 90% interval coverage |
+|---|---|---|---|---|
+| LSTM, GRACE + precipitation + temperature | **2.266** | **2.858** | **0.820** | 89.4% |
+| LSTM, GRACE only | 2.286 | 2.899 | 0.809 | 89.6% |
+| Seasonal persistence | 2.453 | 3.083 | 0.788 | |
+| AR (p ≤ 3, anomalies) | 2.620 | 3.261 | 0.787 | |
+| Persistence | 3.482 | 4.249 | 0.742 | |
+
+Adding precipitation and temperature lowers the LSTM's per-cell RMSE by 0.041 cm (1.4%) and narrows the mean 90% interval from 10.0 to 9.5 cm at the same coverage.
+
+The Transformer evaluator ([PR #1](https://github.com/Lyra0710/Multimodal-Deep-Learning-for-Reliable-GRACE-Water-Storage-Trends/pull/1)) scores models on the cell-months that every model and its reference file share. Its reference file has 46,497 cells, of which 45,956 are also in the aligned file used here; observed TWS is identical on those cells. Scored with that evaluator's metric functions on the 45,956 common cells and 21 months:
+
+| Model | Per-cell RMSE (cm) | MAE (cm) | Pooled RMSE (cm) | Pearson r |
+|---|---|---|---|---|
+| LSTM, GRACE + precipitation + temperature | **2.856** | **2.264** | **3.552** | **0.820** |
+| LSTM, GRACE only | 2.898 | 2.285 | 3.570 | 0.808 |
+| Seasonal persistence | 2.950 | 2.342 | 3.577 | 0.797 |
+| Transformer, GRACE + precipitation + temperature | 3.030 | 2.415 | 3.678 | 0.795 |
+| Transformer, GRACE only | 3.180 | 2.535 | 3.910 | 0.780 |
+| Ridge | 3.688 | 3.075 | 4.727 | 0.811 |
+| Persistence | 4.249 | 3.481 | 5.784 | 0.742 |
+
+The two reference masks differ by about 900 mostly coastal cells; the team should fix one aligned file before final scoring. To add the LSTM to the evaluator, append `--model lstm_grace ../../results/predictions/lstm_aligned_grace_test_predictions.nc prediction` and `--model lstm_combined ../../results/predictions/lstm_aligned_combined_test_predictions.nc prediction` to `compare.sh`.
 
 ## Next steps
 

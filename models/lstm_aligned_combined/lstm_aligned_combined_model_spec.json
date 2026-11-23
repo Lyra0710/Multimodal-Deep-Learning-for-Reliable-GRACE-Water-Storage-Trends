@@ -1,0 +1,120 @@
+{
+  "model_name": "lstm_one_month_forecaster",
+  "config": {
+    "shared_split_config": "grace_fo_config.yaml",
+    "data": {
+      "split_files": {
+        "train": "data/processed/grace_fo_train.nc",
+        "validation": "data/processed/grace_fo_validation.nc",
+        "test": "data/processed/grace_fo_test.nc"
+      },
+      "cache": "data/processed/lstm_aligned_cache.npz",
+      "latitude_limit_deg": 60,
+      "min_anomaly_std_cm": 0.5,
+      "source": "aligned",
+      "aligned_file": "data/processed/p_t_tws_aligned_0.5deg.nc",
+      "mask_variable": "training_mask",
+      "history_start": "2018-01",
+      "inputs": [
+        "tws",
+        "precip",
+        "t2m"
+      ]
+    },
+    "model": {
+      "sequence_length": 12,
+      "hidden_size": 64,
+      "num_layers": 2,
+      "dropout": 0.2
+    },
+    "training": {
+      "ensemble_size": 5,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "batch_size": 2048,
+      "max_epochs": 30,
+      "patience": 3,
+      "learning_rate": 0.0002,
+      "weight_decay": 0.001,
+      "grad_clip": 1.0
+    },
+    "uncertainty": {
+      "nominal_levels": [
+        0.5,
+        0.8,
+        0.9,
+        0.95
+      ],
+      "calibration_split": "validation"
+    },
+    "ar_baseline": {
+      "max_order": 3
+    },
+    "regions": {
+      "Northern India": [
+        24,
+        32,
+        72,
+        84
+      ],
+      "Central Valley, California": [
+        35,
+        40,
+        -122.5,
+        -118.5
+      ],
+      "Middle East (Tigris\u2013Euphrates)": [
+        30,
+        38,
+        38,
+        48
+      ],
+      "Amazon": [
+        -10,
+        0,
+        -70,
+        -55
+      ],
+      "East Africa (Lake Victoria)": [
+        -4,
+        2,
+        29,
+        36
+      ],
+      "Northern Great Plains": [
+        42,
+        50,
+        -105,
+        -95
+      ]
+    },
+    "forecast": {
+      "test_end": "2025-09"
+    },
+    "output": {
+      "tag": "aligned_combined"
+    }
+  },
+  "device": "cuda",
+  "inputs": "previous sequence_length per-cell standardized month-to-month TWSA changes, sin/cos calendar month, log anomaly scale (static), plus standardized past precipitation/temperature anomalies when configured; target-month sin/cos in head",
+  "target": "standardized change TWSA(t) - TWSA(t-1); forecast cm = TWSA(t-1) + scale * z",
+  "normalization": "per-cell change scale (and baseline climatology) fitted on training months only",
+  "selection": "early stopping on validation Gaussian NLL",
+  "test_months": 21,
+  "cells": 46325,
+  "input_variables": [
+    "tws",
+    "precip",
+    "t2m"
+  ],
+  "test_period": [
+    "2024-01",
+    "2025-09"
+  ],
+  "predictions_file": "results/predictions/lstm_aligned_combined_test_predictions.nc"
+}

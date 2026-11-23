@@ -86,10 +86,18 @@
     }
   },
   "device": "cuda",
-  "inputs": "previous sequence_length per-cell standardized month-to-month TWSA changes, sin/cos calendar month, log anomaly scale (static); target-month sin/cos in head",
+  "inputs": "previous sequence_length per-cell standardized month-to-month TWSA changes, sin/cos calendar month, log anomaly scale (static), plus standardized past precipitation/temperature anomalies when configured; target-month sin/cos in head",
   "target": "standardized change TWSA(t) - TWSA(t-1); forecast cm = TWSA(t-1) + scale * z",
   "normalization": "per-cell change scale (and baseline climatology) fitted on training months only",
   "selection": "early stopping on validation Gaussian NLL",
   "test_months": 24,
-  "cells": 46325
+  "cells": 46325,
+  "input_variables": [
+    "tws"
+  ],
+  "test_period": [
+    "2024-01",
+    "2025-12"
+  ],
+  "predictions_file": "results/predictions/lstm_test_predictions.nc"
 }

@@ -1,0 +1,17 @@
+# LSTM on the team's aligned GRACE/IMERG/MERRA-2 file, GRACE inputs only, for the shared model comparison.
+# Model and training settings come from lstm_config.yaml.
+extends: lstm_config.yaml
+
+data:
+  source: aligned
+  aligned_file: "data/processed/p_t_tws_aligned_0.5deg.nc"   # output of scripts/p_t_tws_data.py
+  mask_variable: "training_mask"                              # falls back to "mask" in older files
+  history_start: "2018-01"                                    # earlier months may supply input history
+  cache: "data/processed/lstm_aligned_cache.npz"
+  inputs: ["tws"]
+
+forecast:
+  test_end: "2025-09"                                         # last month in the aligned file
+
+output:
+  tag: "aligned_grace"

@@ -1,0 +1,9 @@
+# Same as lstm_aligned_grace.yaml plus past precipitation and temperature (early fusion, strict forecast:
+# inputs come only from the 12 months before the target).
+extends: lstm_aligned_grace.yaml
+
+data:
+  inputs: ["tws", "precip", "t2m"]
+
+output:
+  tag: "aligned_combined"

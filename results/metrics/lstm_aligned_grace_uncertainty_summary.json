@@ -1,0 +1,11 @@
+{
+  "aleatoric_share_of_total_variance": 0.9890637790245494,
+  "mean_sigma_cm": 2.976606194393148,
+  "spearman_sigma_vs_abs_error": 0.5933155507021357,
+  "conformal_factors_from_validation": {
+    "0.5": 0.6512411236763,
+    "0.8": 1.2829452753067017,
+    "0.9": 1.6788537502288818,
+    "0.95": 2.0105044841766357
+  }
+}

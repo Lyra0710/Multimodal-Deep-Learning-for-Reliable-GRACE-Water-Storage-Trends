@@ -56,5 +56,25 @@ class LSTMForecastTests(unittest.TestCase):
         self.assertAlmostEqual(np.mean(np.abs(actual) <= f[0.9]), 0.9, delta=0.01)
 
 
+    def test_valid_targets_skip_windows_with_missing_months(self):
+        d = synthetic_cache()
+        d["tws"][5, 0] = np.nan                       # one missing month in cell 0
+        ds = lf.deseasonalize(d, 0.5)
+        valid = lf.valid_targets(ds, 12)
+        # change(t) needs TWSA(t) and TWSA(t-1): months 5 and 6 are missing changes in cell 0
+        for t in range(13, 84):
+            expected = not (5 <= t <= 6 + 12)
+            self.assertEqual(bool(valid[t, 0]), expected, t)
+        self.assertTrue(valid[13:, 1:].all())
+
+    def test_extra_inputs_use_training_statistics_only(self):
+        d = synthetic_cache()
+        d["extra"] = np.random.default_rng(2).normal(size=d["tws"].shape + (2,)).astype("float32")
+        before = lf.deseasonalize(d, 0.5)["extra_z"][d["split"] == 0]
+        d["extra"][d["split"] > 0] += 500.0
+        after = lf.deseasonalize(d, 0.5)["extra_z"][d["split"] == 0]
+        np.testing.assert_allclose(before, after)
+
+
 if __name__ == "__main__":
     unittest.main()

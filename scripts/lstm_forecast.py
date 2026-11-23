@@ -12,8 +12,15 @@ static feature normalization use training months only; the test split is touched
 Metrics follow scripts/grace_fo_persistence.py: area-weighted MAE, area-weighted per-cell temporal
 RMSE, and area-weighted mean temporal Pearson r, on land_mask == 1 cells within 60°S–60°N.
 
+Data sources: `data.source: splits` (default) reads the three GRACE-FO split files;
+`data.source: aligned` reads the team's aligned GRACE/IMERG/MERRA-2 file, its cell mask and optional
+earlier history months, and `data.inputs` can add past precipitation and temperature (strict forecast:
+only months before the target). `forecast.test_end` shortens the test period, and `output.tag` keeps
+each configuration's outputs separate. Test predictions are saved in the team evaluator format.
+
 Usage (repository root):
     python scripts/lstm_forecast.py --config configs/lstm_config.yaml
+    python scripts/lstm_forecast.py --config configs/lstm_aligned_combined.yaml --aligned-file PATH
     python scripts/lstm_forecast.py --prepare-only   # build the cache without PyTorch
 """
 
@@ -55,7 +62,84 @@ def read_split(path: Path, target: str, mask_name: str) -> dict:
                     "lat": f["lat"][:], "lon": f["lon"][:], "months": months}
 
 
+def load_config(path: Path) -> dict:
+    """Read a YAML config; `extends: other.yaml` starts from another config and overrides its keys."""
+    cfg = yaml.safe_load(path.read_text())
+    parent = cfg.pop("extends", None)
+    if not parent:
+        return cfg
+
+    def merge(base, new):
+        for k, v in new.items():
+            base[k] = merge(base.get(k, {}), v) if isinstance(v, dict) and isinstance(base.get(k), dict) else v
+        return base
+    return merge(load_config(path.parent / parent), cfg)
+
+
+def split_ids(months: pd.PeriodIndex, shared: dict) -> np.ndarray:
+    """0/1/2 for train/validation/test target months, -1 for history-only months."""
+    ids = np.full(len(months), -1)
+    for i, s in enumerate(SPLITS):
+        b = shared["splits"][s]
+        ids[(months >= pd.Period(b["start"][:7], "M")) & (months <= pd.Period(b["end"][:7], "M"))] = i
+    return ids
+
+
+def read_aligned(path: Path, variables: list, mask_variable: str) -> dict:
+    """Read the aligned multimodal NetCDF (time, lat, lon) with xarray, falling back to h5py."""
+    try:
+        import xarray as xr
+        with xr.open_dataset(path) as ds:
+            name = mask_variable if mask_variable in ds else "mask"
+            return {"data": {v: ds[v].transpose("time", "lat", "lon").values.astype("float32") for v in variables},
+                    "mask": ds[name].values, "mask_name": name, "lat": ds.lat.values, "lon": ds.lon.values,
+                    "months": pd.DatetimeIndex(ds.time.values).to_period("M")}
+    except (ImportError, ValueError, OSError):
+        import h5py
+        with h5py.File(path, "r") as f:
+            units = f["time"].attrs["units"]
+            units = units.decode() if isinstance(units, bytes) else units
+            origin = pd.Timestamp(units.split("since")[1].strip())
+            name = mask_variable if mask_variable in f else "mask"
+            return {"data": {v: f[v][:].astype("float32") for v in variables}, "mask": f[name][:],
+                    "mask_name": name, "lat": f["lat"][:], "lon": f["lon"][:],
+                    "months": pd.DatetimeIndex(origin + pd.to_timedelta(f["time"][:], unit="D")).to_period("M")}
+
+
 def prepare_cache(cfg: dict, shared: dict, root: Path) -> Path:
+    if cfg["data"].get("source", "splits") == "aligned":
+        return prepare_aligned_cache(cfg, shared, root)
+    return prepare_split_cache(cfg, shared, root)
+
+
+def test_end(cfg: dict, shared: dict) -> pd.Period:
+    return pd.Period((cfg.get("forecast", {}).get("test_end") or shared["splits"]["test"]["end"])[:7], "M")
+
+
+def prepare_aligned_cache(cfg: dict, shared: dict, root: Path) -> Path:
+    """Aligned TWS, precipitation and temperature for the file's mask, history_start through test_end."""
+    dc = cfg["data"]
+    a = read_aligned(root / dc["aligned_file"], ["tws", "precip", "t2m"], dc.get("mask_variable", "training_mask"))
+    keep = (np.nan_to_num(a["mask"]) > 0) & (np.abs(a["lat"])[:, None] <= dc["latitude_limit_deg"])
+    sel = (a["months"] >= pd.Period(dc.get("history_start", shared["splits"]["train"]["start"])[:7], "M")) & \
+          (a["months"] <= test_end(cfg, shared))
+    months = a["months"][sel]
+    if not months.equals(pd.period_range(months[0], months[-1], freq="M")):
+        raise ValueError("Aligned file months are not consecutive")
+    tws = a["data"]["tws"][sel][:, keep]
+    extra = np.stack([a["data"][v][sel][:, keep] for v in ("precip", "t2m")], axis=-1)
+    lat_idx, lon_idx = np.nonzero(keep)
+    out = root / dc["cache"]
+    np.savez_compressed(out, tws=tws, extra=extra, extra_names=np.array(["precip", "t2m"]),
+                        lat=a["lat"][lat_idx], lon=a["lon"][lon_idx], lat_idx=lat_idx, lon_idx=lon_idx,
+                        grid_lat=a["lat"], grid_lon=a["lon"], month=months.month.values, year=months.year.values,
+                        split=split_ids(months, shared))
+    print(f"Cached {tws.shape[0]} months ({months[0]}–{months[-1]}) x {tws.shape[1]} cells "
+          f"from {dc['aligned_file']} using mask '{a['mask_name']}' -> {out}")
+    return out
+
+
+def prepare_split_cache(cfg: dict, shared: dict, root: Path) -> Path:
     """Stack the three chronological splits into (time, cell) arrays for evaluation cells."""
     target = shared["forecast"]["target_variable"]
     mask_name = shared["forecast"]["land_mask_variable"]
@@ -69,6 +153,8 @@ def prepare_cache(cfg: dict, shared: dict, root: Path) -> Path:
     tws = np.concatenate([parts[s]["tws"][:, keep] for s in SPLITS])
     lat_idx, lon_idx = np.nonzero(keep)
     split_id = np.concatenate([np.full(len(parts[s]["months"]), i) for i, s in enumerate(SPLITS)])
+    upto = months <= test_end(cfg, shared)
+    tws, months, split_id = tws[upto], months[upto], split_id[upto]
     out = root / cfg["data"]["cache"]
     np.savez_compressed(out, tws=tws, lat=lat[lat_idx], lon=lon[lon_idx], lat_idx=lat_idx, lon_idx=lon_idx,
                         grid_lat=lat, grid_lon=lon, month=months.month.values, year=months.year.values,
@@ -77,9 +163,20 @@ def prepare_cache(cfg: dict, shared: dict, root: Path) -> Path:
     return out
 
 
-def load_cache(path: Path) -> dict:
+def load_cache(path: Path, inputs=("tws",)) -> dict:
     d = dict(np.load(path))
     d["periods"] = pd.PeriodIndex([pd.Period(year=y, month=m, freq="M") for y, m in zip(d["year"], d["month"])])
+    extra = [v for v in inputs if v != "tws"]
+    if extra:
+        names = list(d.get("extra_names", []))
+        missing = [v for v in extra if v not in names]
+        if missing:
+            raise ValueError(f"Inputs {missing} need data.source: aligned")
+        d["extra"] = d["extra"][..., [names.index(v) for v in extra]]
+        d["extra_names"] = np.array(extra)
+    else:
+        d.pop("extra", None)
+        d.pop("extra_names", None)
     return d
 
 
@@ -91,15 +188,35 @@ def deseasonalize(d: dict, min_std: float) -> dict:
     """
     train = d["split"] == 0
     tws, month = d["tws"], d["month"]
-    clim = np.stack([tws[train & (month == m)].mean(axis=0) for m in range(1, 13)])  # (12, cell)
-    seasonal = clim[month - 1]                                                        # (time, cell)
-    change = np.vstack([np.zeros((1, tws.shape[1]), tws.dtype), np.diff(tws, axis=0)])
-    scale = np.maximum(change[1:][train[1:]].std(axis=0), min_std)
-    base = np.vstack([np.full((1, tws.shape[1]), np.nan, tws.dtype), tws[:-1]])       # TWSA(t-1)
+    clim = np.stack([np.nanmean(tws[train & (month == m)], axis=0) for m in range(1, 13)])  # (12, cell)
+    seasonal = clim[month - 1]                                                               # (time, cell)
+    change = np.vstack([np.full((1, tws.shape[1]), np.nan, tws.dtype), np.diff(tws, axis=0)])
+    scale = np.maximum(np.nanstd(change[train], axis=0), min_std)
+    base = np.vstack([np.full((1, tws.shape[1]), np.nan, tws.dtype), tws[:-1]])              # TWSA(t-1)
     log_scale = np.log(scale)
     static = (log_scale - log_scale.mean()) / log_scale.std()
-    return {"seasonal": seasonal, "anomaly": tws - seasonal, "base": base, "scale": scale,
-            "z": change / scale, "static": static}
+    out = {"seasonal": seasonal, "anomaly": tws - seasonal, "base": base, "scale": scale,
+           "z": change / scale, "static": static}
+    if "extra" in d:  # past precipitation/temperature: anomaly from training climatology / per-cell std
+        x = d["extra"]
+        xclim = np.stack([np.nanmean(x[train & (month == m)], axis=0) for m in range(1, 13)])
+        xa = x - xclim[month - 1]
+        out["extra_z"] = xa / np.maximum(np.nanstd(xa[train], axis=0), 1e-6)
+    return out
+
+
+def valid_targets(ds: dict, seq_len: int) -> np.ndarray:
+    """(time, cell) True where the target change and every input month t-seq_len..t-1 are finite."""
+    ok = np.isfinite(ds["z"])
+    if "extra_z" in ds:
+        ok_in = ok & np.isfinite(ds["extra_z"]).all(axis=-1)
+    else:
+        ok_in = ok
+    csum = np.vstack([np.zeros((1, ok.shape[1]), int), np.cumsum(ok_in, axis=0)])
+    valid = np.zeros_like(ok)
+    t = np.arange(seq_len, ok.shape[0])
+    valid[t] = ok[t] & ((csum[t] - csum[t - seq_len]) == seq_len)
+    return valid
 
 
 def target_index(d: dict, split: int, seq_len: int) -> np.ndarray:
@@ -140,7 +257,7 @@ def baselines(d: dict, ds: dict, t_idx: np.ndarray, max_order: int) -> dict:
     }
     # AR(p) on anomalies, p <= max_order by AIC, fitted per cell on training targets only.
     train_t = np.flatnonzero(d["split"] == 0)
-    train_t = train_t[train_t >= max_order]
+    train_t = np.array([t for t in train_t if t >= max_order and np.isfinite(anomaly[t - max_order:t + 1]).all()])
     y = anomaly[train_t]
     lags = np.stack([anomaly[train_t - k] for k in range(1, max_order + 1)], axis=-1)  # (n, cell, P)
     n = len(train_t)
@@ -182,7 +299,8 @@ def build_model(cfg: dict):
             return out[:, 0], out[:, 1].clamp(-8.0, 5.0)
 
     m = cfg["model"]
-    return LSTMForecaster(4, m["hidden_size"], m["num_layers"], m["dropout"])
+    n_in = 4 + len([v for v in cfg["data"].get("inputs", ["tws"]) if v != "tws"])
+    return LSTMForecaster(n_in, m["hidden_size"], m["num_layers"], m["dropout"])
 
 
 class Batcher:
@@ -195,6 +313,8 @@ class Batcher:
         ang = 2 * np.pi * (d["month"] - 1) / 12
         self.mon = torch.tensor(np.stack([np.sin(ang), np.cos(ang)], 1), dtype=torch.float32, device=device)
         self.static = torch.tensor(ds["static"], dtype=torch.float32, device=device)
+        self.extra = (torch.tensor(np.nan_to_num(ds["extra_z"]), dtype=torch.float32, device=device)
+                      if "extra_z" in ds else None)
         w = area_weights(d["lat"])
         self.w = torch.tensor(w / w.mean(), dtype=torch.float32, device=device)
         self.offsets = torch.arange(-seq_len, 0, device=device)
@@ -205,6 +325,8 @@ class Batcher:
         x = torch.stack([self.z[tt, c[:, None]],
                          self.mon[tt, 0], self.mon[tt, 1],
                          self.static[c][:, None].expand(-1, self.L)], dim=-1)
+        if self.extra is not None:                              # past precipitation/temperature only
+            x = torch.cat([x, self.extra[tt, c[:, None]]], dim=-1)
         return x, self.mon[t], self.z[t, c], self.w[c]
 
 
@@ -237,8 +359,10 @@ def train_member(cfg, d, ds, seed, device, log):
     batcher = Batcher(d, ds, L, device)
     n_cells = d["tws"].shape[1]
     train_t, val_t = target_index(d, 0, L), target_index(d, 1, L)
-    pairs = np.stack(np.meshgrid(train_t, np.arange(n_cells), indexing="ij"), -1).reshape(-1, 2)
-    pairs = torch.tensor(pairs, device=device)
+    rows, cells = np.nonzero(valid_targets(ds, L)[train_t])
+    pairs = torch.tensor(np.stack([train_t[rows], cells], -1), device=device)
+    if seed == cfg["training"]["seeds"][0]:
+        print(f"  training cell-months with complete history: {len(pairs):,}")
     model = build_model(cfg).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=tr["learning_rate"], weight_decay=tr["weight_decay"])
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=tr["max_epochs"])
@@ -312,6 +436,36 @@ def coverage_table(actual, mean, sigma, levels, factors, lat):
     return pd.DataFrame(rows)
 
 
+# ----------------------------------------------------------------------------- predictions
+def write_predictions(path: Path, d: dict, t_idx, fields: dict) -> Path:
+    """Gridded (time, lat, lon) predictions in cm for the team evaluator; CSV if no NetCDF engine."""
+    lon180 = np.where(d["grid_lon"] > 180, d["grid_lon"] - 360, d["grid_lon"])
+    order = np.argsort(lon180)
+    col = np.argsort(order)[d["lon_idx"]]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    times = d["periods"][t_idx].to_timestamp()
+    grids = {}
+    for k, v in fields.items():
+        g = np.full((len(t_idx), len(d["grid_lat"]), len(lon180)), np.nan, dtype="float32")
+        g[:, d["lat_idx"], col] = v
+        grids[k] = g
+    try:
+        import xarray as xr
+        ds = xr.Dataset({k: (("time", "lat", "lon"), g, {"units": "cm"}) for k, g in grids.items()},
+                        coords={"time": times, "lat": d["grid_lat"], "lon": lon180[order]})
+        ds.to_netcdf(path.with_suffix(".nc"), encoding={k: {"zlib": True} for k in grids})
+        return path.with_suffix(".nc")
+    except (ImportError, ValueError) as error:
+        print(f"NetCDF writer unavailable ({error}); writing CSV instead")
+        frame = pd.DataFrame({"time": np.repeat(times.strftime("%Y-%m-%d"), len(d["lat"])),
+                              "lat": np.tile(d["lat"], len(t_idx)),
+                              "lon": np.tile(np.where(d["lon"] > 180, d["lon"] - 360, d["lon"]), len(t_idx))})
+        for k, v in fields.items():
+            frame[k] = np.asarray(v, dtype="float32").ravel()
+        frame.to_csv(path.with_suffix(".csv"), index=False, float_format="%.4f")
+        return path.with_suffix(".csv")
+
+
 # ----------------------------------------------------------------------------- figures
 def to_grid(values, d):
     grid = np.full((len(d["grid_lat"]), len(d["grid_lon"])), np.nan)
@@ -326,7 +480,8 @@ def wmean_series(x, lat):
     return (x * w).sum(1) / w.sum()
 
 
-def make_figures(d, ds, t_idx, actual, models, ens, sigma_cal, cov, fig_dir, example_cell=(28.25, 77.25)):
+def make_figures(d, ds, t_idx, actual, models, ens, sigma_cal, cov, fig_dir, prefix="lstm",
+                 example_cell=(28.25, 77.25)):
     fig_dir.mkdir(parents=True, exist_ok=True)
     lat = d["lat"]
     dates = d["periods"][t_idx].to_timestamp()
@@ -351,9 +506,9 @@ def make_figures(d, ds, t_idx, actual, models, ens, sigma_cal, cov, fig_dir, exa
     for ax in axes:
         ax.grid(alpha=0.3)
         ax.legend(fontsize=8)
-    fig.suptitle("LSTM one-month-ahead forecasts, test period 2024–2025")
+    fig.suptitle(f"LSTM one-month-ahead forecasts, test period {d['periods'][t_idx[0]]} to {d['periods'][t_idx[-1]]}")
     fig.tight_layout()
-    fig.savefig(fig_dir / "lstm_test_actual_vs_predicted.png", dpi=150)
+    fig.savefig(fig_dir / f"{prefix}_test_actual_vs_predicted.png", dpi=150)
     plt.close(fig)
 
     # 2. RMSE by test month for every model
@@ -367,7 +522,7 @@ def make_figures(d, ds, t_idx, actual, models, ens, sigma_cal, cov, fig_dir, exa
     ax.grid(alpha=0.3)
     ax.legend(fontsize=8)
     fig.tight_layout()
-    fig.savefig(fig_dir / "lstm_rmse_by_test_month.png", dpi=150)
+    fig.savefig(fig_dir / f"{prefix}_rmse_by_test_month.png", dpi=150)
     plt.close(fig)
 
     # 3. Skill maps vs persistence and AR
@@ -383,7 +538,7 @@ def make_figures(d, ds, t_idx, actual, models, ens, sigma_cal, cov, fig_dir, exa
         ax.set_title(f"LSTM skill vs {ref}: 1 − RMSE ratio (better in {better.sum() / w.sum():.0%} of land area)",
                      fontsize=9)
     fig.colorbar(im, ax=axes, shrink=0.8, label="skill (blue = LSTM better)")
-    fig.savefig(fig_dir / "lstm_skill_maps.png", dpi=150, bbox_inches="tight")
+    fig.savefig(fig_dir / f"{prefix}_skill_maps.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
 
     # 4. Reliability: nominal vs empirical coverage, raw and calibrated
@@ -411,7 +566,7 @@ def make_figures(d, ds, t_idx, actual, models, ens, sigma_cal, cov, fig_dir, exa
     axes[1].legend(fontsize=8)
     axes[1].grid(alpha=0.3)
     fig.tight_layout()
-    fig.savefig(fig_dir / "lstm_interval_reliability.png", dpi=150)
+    fig.savefig(fig_dir / f"{prefix}_interval_reliability.png", dpi=150)
     plt.close(fig)
     return float(rho)
 
@@ -423,10 +578,13 @@ def main():
     ap.add_argument("--root", type=Path, default=Path("."), help="repository root")
     ap.add_argument("--prepare-only", action="store_true", help="only build the data cache")
     ap.add_argument("--device", default=None, help="cpu, cuda or mps (default: best available)")
+    ap.add_argument("--aligned-file", default=None, help="override data.aligned_file")
     args = ap.parse_args()
 
     root = args.root
-    cfg = yaml.safe_load((root / args.config).read_text())
+    cfg = load_config(root / args.config)
+    if args.aligned_file:
+        cfg["data"]["aligned_file"] = args.aligned_file
     shared = yaml.safe_load((root / args.config.parent / cfg["shared_split_config"]).read_text())
     cache = root / cfg["data"]["cache"]
     if args.prepare_only or not cache.exists():
@@ -437,25 +595,31 @@ def main():
     import torch
     device = args.device or ("cuda" if torch.cuda.is_available()
                              else "mps" if torch.backends.mps.is_available() else "cpu")
-    metrics_dir, fig_dir, model_dir = root / "results/metrics", root / "results/figures", root / "models/lstm"
+    tag = cfg.get("output", {}).get("tag", "")
+    prefix = f"lstm_{tag}" if tag else "lstm"
+    metrics_dir, fig_dir, model_dir = root / "results/metrics", root / "results/figures", root / "models" / prefix
     for p in (metrics_dir, fig_dir, model_dir):
         p.mkdir(parents=True, exist_ok=True)
 
-    d = load_cache(cache)
+    inputs = cfg["data"].get("inputs", ["tws"])
+    d = load_cache(cache, inputs)
     ds = deseasonalize(d, cfg["data"]["min_anomaly_std_cm"])
     L = cfg["model"]["sequence_length"]
     val_t, test_t = target_index(d, 1, L), target_index(d, 2, L)
     n_cells = d["tws"].shape[1]
-    print(f"Device {device}; {n_cells} cells; train targets {len(target_index(d, 0, L))} months, "
-          f"validation {len(val_t)}, test {len(test_t)}")
+    valid = valid_targets(ds, L)
+    if not (valid[val_t].all() and valid[test_t].all()):
+        raise ValueError("Validation/test targets need complete histories in every cell")
+    print(f"Device {device}; inputs {inputs}; {n_cells} cells; train target months {len(target_index(d, 0, L))}, "
+          f"validation {len(val_t)}, test {len(test_t)} ({d['periods'][test_t[0]]} to {d['periods'][test_t[-1]]})")
 
     log, val_preds, test_preds = [], [], []
     for seed in cfg["training"]["seeds"][: cfg["training"]["ensemble_size"]]:
         model, batcher = train_member(cfg, d, ds, seed, device, log)
-        torch.save(model.state_dict(), model_dir / f"lstm_member_seed{seed}.pt")
+        torch.save(model.state_dict(), model_dir / f"{prefix}_member_seed{seed}.pt")
         val_preds.append(predict(model, batcher, val_t, n_cells))
         test_preds.append(predict(model, batcher, test_t, n_cells))
-    pd.DataFrame(log).to_csv(metrics_dir / "lstm_training_history.csv", index=False)
+    pd.DataFrame(log).to_csv(metrics_dir / f"{prefix}_training_history.csv", index=False)
 
     # Ensemble + conformal calibration on validation (2023) only
     levels = cfg["uncertainty"]["nominal_levels"]
@@ -472,18 +636,18 @@ def main():
     models.update(baselines(d, ds, test_t, cfg["ar_baseline"]["max_order"]))
     rows = [{"model": n, **score(actual, p, d["lat"])} for n, p in models.items()]
     table = pd.DataFrame(rows)
-    table.to_csv(metrics_dir / "lstm_test_metrics.csv", index=False)
+    table.to_csv(metrics_dir / f"{prefix}_test_metrics.csv", index=False)
 
     w = area_weights(d["lat"])
     by_month = pd.DataFrame({"target_month": d["periods"][test_t].astype(str)})
     for n, p in models.items():
         if "member" not in n:
             by_month[n] = np.sqrt((((p - actual) ** 2) * w).sum(1) / w.sum())
-    by_month.to_csv(metrics_dir / "lstm_rmse_by_test_month.csv", index=False)
+    by_month.to_csv(metrics_dir / f"{prefix}_rmse_by_test_month.csv", index=False)
     years = d["periods"][test_t].year
     by_year = pd.DataFrame([{"year": y, "model": n, **score(actual[years == y], p[years == y], d["lat"])}
                             for y in np.unique(years) for n, p in models.items() if "member" not in n])
-    by_year.to_csv(metrics_dir / "lstm_test_metrics_by_year.csv", index=False)
+    by_year.to_csv(metrics_dir / f"{prefix}_test_metrics_by_year.csv", index=False)
 
     lon180 = np.where(d["lon"] > 180, d["lon"] - 360, d["lon"])
     reg_rows = []
@@ -492,11 +656,16 @@ def main():
         for n, p in models.items():
             if "member" not in n:
                 reg_rows.append({"region": name, "model": n, **score(actual[:, sel], p[:, sel], d["lat"][sel])})
-    pd.DataFrame(reg_rows).to_csv(metrics_dir / "lstm_region_metrics.csv", index=False)
+    pd.DataFrame(reg_rows).to_csv(metrics_dir / f"{prefix}_region_metrics.csv", index=False)
 
     cov = coverage_table(actual, ens["mean"], sig, levels, factors, d["lat"])
-    cov.to_csv(metrics_dir / "lstm_interval_coverage.csv", index=False)
-    rho = make_figures(d, ds, test_t, actual, models, ens, sig, cov, fig_dir)
+    cov.to_csv(metrics_dir / f"{prefix}_interval_coverage.csv", index=False)
+    rho = make_figures(d, ds, test_t, actual, models, ens, sig, cov, fig_dir, prefix)
+    q90 = factors[0.9] if 0.9 in factors else None
+    fields = {"prediction": ens["mean"], "actual_tws": actual, "sigma": sig}
+    if q90 is not None:
+        fields.update(lower_90=ens["mean"] - q90 * sig, upper_90=ens["mean"] + q90 * sig)
+    pred_path = write_predictions(metrics_dir.parent / "predictions" / f"{prefix}_test_predictions", d, test_t, fields)
     unc = {
         "aleatoric_share_of_total_variance": float(((ens["aleatoric_var"] / sig ** 2) * w).sum()
                                                    / (w.sum() * len(test_t))),
@@ -504,15 +673,19 @@ def main():
         "spearman_sigma_vs_abs_error": rho,
         "conformal_factors_from_validation": factors,
     }
-    (metrics_dir / "lstm_uncertainty_summary.json").write_text(json.dumps(unc, indent=2) + "\n")
+    (metrics_dir / f"{prefix}_uncertainty_summary.json").write_text(json.dumps(unc, indent=2) + "\n")
     spec = {"model_name": "lstm_one_month_forecaster", "config": cfg, "device": device,
             "inputs": "previous sequence_length per-cell standardized month-to-month TWSA changes, "
-                      "sin/cos calendar month, log anomaly scale (static); target-month sin/cos in head",
+                      "sin/cos calendar month, log anomaly scale (static), plus standardized past "
+                      "precipitation/temperature anomalies when configured; target-month sin/cos in head",
             "target": "standardized change TWSA(t) - TWSA(t-1); forecast cm = TWSA(t-1) + scale * z",
             "normalization": "per-cell change scale (and baseline climatology) fitted on training months only",
             "selection": "early stopping on validation Gaussian NLL", "test_months": len(test_t),
             "cells": n_cells}
-    (model_dir / "lstm_model_spec.json").write_text(json.dumps(spec, indent=2, default=str) + "\n")
+    spec.update(input_variables=inputs, test_period=[str(d["periods"][test_t[0]]), str(d["periods"][test_t[-1]])],
+                predictions_file=str(pred_path))
+    (model_dir / f"{prefix}_model_spec.json").write_text(json.dumps(spec, indent=2, default=str) + "\n")
+    print(f"Saved test predictions: {pred_path}")
     print(table.round(3).to_string(index=False))
     print(cov.round(3).to_string(index=False))
     print(json.dumps(unc, indent=2))
