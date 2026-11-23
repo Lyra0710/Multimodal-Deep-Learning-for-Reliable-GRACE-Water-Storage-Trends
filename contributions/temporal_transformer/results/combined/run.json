@@ -1,0 +1,34 @@
+{
+  "seed": 42,
+  "history_months": 12,
+  "variables": [
+    "tws",
+    "precip",
+    "t2m"
+  ],
+  "calendar": [
+    "sin_month",
+    "cos_month"
+  ],
+  "train": "2019-01/2022-12",
+  "validation": "2023-01/2023-12",
+  "test": [
+    "2024-01-01",
+    "2025-09-01"
+  ],
+  "training_pairs": 1813383,
+  "sampled_per_epoch": 32768,
+  "validation_sample": 16384,
+  "selected_epoch": 11,
+  "mean": [
+    -1.9898598194122314,
+    70.7697982788086,
+    15.247305870056152
+  ],
+  "scale": [
+    19.749895095825195,
+    91.62007141113281,
+    13.457417488098145
+  ],
+  "torch_version": "2.8.0"
+}
