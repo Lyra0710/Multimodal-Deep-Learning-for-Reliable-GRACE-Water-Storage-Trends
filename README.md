@@ -122,7 +122,7 @@ The multimodal handoff produced by `p_t_tws_data.py` is `data/processed/p_t_tws_
      --output-dir contributions/combined_dataset_analysis_ridge/rerun_results
    ```
 
-7. Train and evaluate the LSTM ensemble (needs PyTorch: `python -m pip install torch`). It reads the step-4 split files, caches them as `data/processed/lstm_cache.npz`, and takes about 5 minutes on an Apple M2 Pro GPU:
+7. Train and evaluate the LSTM ensemble (needs PyTorch: `python -m pip install torch`). It reads the step-4 split files, caches them as `data/processed/lstm_cache.npz`, and takes about 4 minutes on a GPU. The reported results come from a Google Colab T4 GPU run, saved with its outputs in [LSTM_Colab_Run.ipynb](notebooks/LSTM_Colab_Run.ipynb):
 
    ```bash
    python scripts/lstm_forecast.py --config configs/lstm_config.yaml
@@ -152,13 +152,13 @@ Test results use the persistence workflow's months (2024-01 to 2025-12), cells a
 
 | Model | MAE (cm) | RMSE (cm) | Pearson r |
 |---|---|---|---|
-| LSTM, 5-member ensemble | **2.261** | **2.871** | **0.826** |
+| LSTM, 5-member ensemble | **2.262** | **2.871** | **0.826** |
 | Seasonal persistence | 2.435 | 3.066 | 0.807 |
 | AR (p ≤ 3, anomalies) | 2.605 | 3.250 | 0.804 |
 | Persistence | 3.437 | 4.201 | 0.764 |
 | Climatology | 6.642 | 7.440 | 0.601 |
 
-The LSTM has lower RMSE than persistence over 88% of the land area and lower than AR over 73%; it is weaker than seasonal persistence in the Amazon and East Africa. RMSE is 2.93 cm in 2024 and 2.72 cm in 2025. Calibrated 50/80/90/95% intervals cover 49.4/80.4/90.0/95.0% of test values (mean 90% width 10.1 cm). Predicted σ tracks the actual error (Spearman ρ = 0.59), and about 99% of the predicted variance is aleatoric. Outputs are `results/metrics/lstm_*`, `results/figures/lstm_*` and `models/lstm/`.
+The LSTM has lower RMSE than persistence over 89% of the land area and lower than AR over 73%; it is weaker than seasonal persistence in the Amazon and East Africa. RMSE is 2.93 cm in 2024 and 2.72 cm in 2025. Calibrated 50/80/90/95% intervals cover 49.3/80.1/90.0/94.9% of test values (mean 90% width 10.1 cm). Predicted σ tracks the actual error (Spearman ρ = 0.59), and about 99% of the predicted variance is aleatoric. Outputs are `results/metrics/lstm_*`, `results/figures/lstm_*` and `models/lstm/`.
 
 ## Next steps
 

@@ -85,7 +85,7 @@
       ]
     }
   },
-  "device": "mps",
+  "device": "cuda",
   "inputs": "previous sequence_length per-cell standardized month-to-month TWSA changes, sin/cos calendar month, log anomaly scale (static); target-month sin/cos in head",
   "target": "standardized change TWSA(t) - TWSA(t-1); forecast cm = TWSA(t-1) + scale * z",
   "normalization": "per-cell change scale (and baseline climatology) fitted on training months only",
