@@ -1,0 +1,44 @@
+# LSTM one-month-ahead TWSA forecaster with ensemble prediction intervals.
+# Split dates, target variable and land mask come from the shared GRACE-FO configuration,
+# so the LSTM is scored on the same target months and cells as the persistence baseline.
+shared_split_config: "grace_fo_config.yaml"
+
+data:
+  split_files:
+    train: "data/processed/grace_fo_train.nc"
+    validation: "data/processed/grace_fo_validation.nc"
+    test: "data/processed/grace_fo_test.nc"
+  cache: "data/processed/lstm_cache.npz"   # land-cell arrays; rebuilt automatically if missing
+  latitude_limit_deg: 60
+  min_anomaly_std_cm: 0.5                  # floor for the per-cell scale of training month-to-month changes
+
+model:
+  sequence_length: 12                      # months of history per forecast
+  hidden_size: 64
+  num_layers: 2
+  dropout: 0.2
+
+training:
+  ensemble_size: 5                         # members differ only in random seed
+  seeds: [0, 1, 2, 3, 4]
+  batch_size: 2048
+  max_epochs: 30
+  patience: 3                              # early stopping on validation Gaussian NLL
+  learning_rate: 2.0e-4
+  weight_decay: 1.0e-3
+  grad_clip: 1.0
+
+uncertainty:
+  nominal_levels: [0.5, 0.8, 0.9, 0.95]   # central prediction-interval coverage levels
+  calibration_split: "validation"         # split-conformal scaling fitted on 2023 only
+
+ar_baseline:
+  max_order: 3                             # AR(p) on deseasonalized anomalies, p chosen per cell by AIC
+
+regions:                                   # lat_min, lat_max, lon_min, lon_max (lon in -180..180)
+  Northern India: [24, 32, 72, 84]
+  Central Valley, California: [35, 40, -122.5, -118.5]
+  Middle East (Tigris–Euphrates): [30, 38, 38, 48]
+  Amazon: [-10, 0, -70, -55]
+  East Africa (Lake Victoria): [-4, 2, 29, 36]
+  Northern Great Plains: [42, 50, -105, -95]

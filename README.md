@@ -25,7 +25,7 @@ contributions/combined_dataset_analysis_ridge/
   scripts/combined_ridge.py      combined-data Ridge workflow
 data/raw/                        local NASA source files (not committed)
 data/processed/                  generated analysis/model inputs
-models/                          saved baseline specifications
+models/                          saved baseline specifications; LSTM weights in models/lstm/
 notebooks/                       interactive GRACE and trend analyses
 results/figures/                 saved figures
 results/metrics/                 saved metric tables
@@ -35,6 +35,7 @@ scripts/
   p_t_tws_data.py                GRACE + precipitation + temperature alignment
   p_t_tws_analysis.py            driver and trend analysis
   p_t_tws_baselines.py           regression and spatial-CV baselines
+  lstm_forecast.py               LSTM ensemble forecaster with prediction intervals
 tests/                           root workflow tests
 ```
 
@@ -44,6 +45,7 @@ tests/                           root workflow tests
 - Statistical trend analysis and an autoregressive baseline in [Statistical_Trend_Analysis.ipynb](notebooks/Statistical_Trend_Analysis.ipynb).
 - Precipitation/temperature alignment, driver analysis, and temporal and geographic regression baselines.
 - Combined-data exploratory analysis and a per-cell Ridge baseline in [Combined_Dataset_Analysis_Ridge.ipynb](contributions/combined_dataset_analysis_ridge/Combined_Dataset_Analysis_Ridge.ipynb).
+- GRACE-only LSTM ensemble with calibrated prediction intervals in [lstm_forecast.py](scripts/lstm_forecast.py).
 
 Saved figures and summaries are in `results/figures/` and `results/metrics/`; the combined Ridge contribution also contains its own CSV summaries and figures. See the current implementations: [GRACE preprocessing](scripts/grace_fo_processing.py), [persistence](scripts/grace_fo_persistence.py), [P/T alignment](scripts/p_t_tws_data.py), [P/T analysis](scripts/p_t_tws_analysis.py), [P/T baselines](scripts/p_t_tws_baselines.py), and [combined Ridge](contributions/combined_dataset_analysis_ridge/scripts/combined_ridge.py).
 
@@ -120,6 +122,14 @@ The multimodal handoff produced by `p_t_tws_data.py` is `data/processed/p_t_tws_
      --output-dir contributions/combined_dataset_analysis_ridge/rerun_results
    ```
 
+7. Train and evaluate the LSTM ensemble (needs PyTorch: `python -m pip install torch`). It reads the step-4 split files, caches them as `data/processed/lstm_cache.npz`, and takes about 5 minutes on an Apple M2 Pro GPU:
+
+   ```bash
+   python scripts/lstm_forecast.py --config configs/lstm_config.yaml
+   ```
+
+   [LSTM_Forecast_and_Uncertainty.ipynb](notebooks/LSTM_Forecast_and_Uncertainty.ipynb) runs the same script and shows the results; it also runs on Google Colab (GPU optional).
+
    Open [GRACE_GRACE_FO_Data_Analysis.ipynb](notebooks/GRACE_GRACE_FO_Data_Analysis.ipynb), [P_T_TWS_Drivers_and_Baselines.ipynb](notebooks/P_T_TWS_Drivers_and_Baselines.ipynb), or [Statistical_Trend_Analysis.ipynb](notebooks/Statistical_Trend_Analysis.ipynb) for the corresponding interactive analyses. The notebooks require their source data and, where applicable, Earthdata credentials; run their cells manually in order.
 
    Root tests can be run with:
@@ -134,9 +144,25 @@ The main GRACE-FO persistence workflow forecasts one target month from the prior
 
 The precipitation/temperature temporal baselines read the same split configuration, but their exact valid grid cells depend on aligned-data availability and the shared finite-prediction mask. The combined Ridge contribution uses the same nominal split boundaries, but its saved run covers January 2024–September 2025 because the supplied combined input ended in September; it reports both pooled and per-cell aggregation tables. Do not compare scores across workflows without matching dates, valid cells, and RMSE aggregation.
 
+## LSTM forecaster with prediction intervals
+
+One LSTM is shared by all 46,325 land cells. For each cell and target month it reads the previous 12 month-to-month GRACE-FO TWSA changes (scaled per cell) and the calendar month, and predicts a Gaussian mean and variance for the next change; the forecast is TWSA(t − 1) plus that change. Inputs are GRACE-FO only. Five members with different seeds form a deep ensemble: the mean of member variances is data (aleatoric) uncertainty and the variance of member means is model (epistemic) uncertainty. Interval widths are rescaled by split-conformal calibration on 2023. Every input month precedes the target, per-cell scales and the baseline climatology use training months only, settings and early stopping use the validation year only, and the test years are scored once. Settings are in [lstm_config.yaml](configs/lstm_config.yaml).
+
+Test results use the persistence workflow's months (2024-01 to 2025-12), cells and metrics. The AR baseline here is refitted on 2019–2022 only.
+
+| Model | MAE (cm) | RMSE (cm) | Pearson r |
+|---|---|---|---|
+| LSTM, 5-member ensemble | **2.261** | **2.871** | **0.826** |
+| Seasonal persistence | 2.435 | 3.066 | 0.807 |
+| AR (p ≤ 3, anomalies) | 2.605 | 3.250 | 0.804 |
+| Persistence | 3.437 | 4.201 | 0.764 |
+| Climatology | 6.642 | 7.440 | 0.601 |
+
+The LSTM has lower RMSE than persistence over 88% of the land area and lower than AR over 73%; it is weaker than seasonal persistence in the Amazon and East Africa. RMSE is 2.93 cm in 2024 and 2.72 cm in 2025. Calibrated 50/80/90/95% intervals cover 49.4/80.4/90.0/95.0% of test values (mean 90% width 10.1 cm). Predicted σ tracks the actual error (Spearman ρ = 0.59), and about 99% of the predicted variance is aleatoric. Outputs are `results/metrics/lstm_*`, `results/figures/lstm_*` and `models/lstm/`.
+
 ## Next steps
 
-- Implement LSTM, TCN, and temporal Transformer models.
+- Implement TCN and temporal Transformer models.
 - Investigate early and late multimodal fusion.
 - Evaluate a gridded ConvLSTM model, as suggested in proposal feedback.
 - Test geographic, temporal, and GRACE-to-GRACE-FO generalization.
