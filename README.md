@@ -164,7 +164,7 @@ The LSTM has lower RMSE than persistence over 89% of the land area and lower tha
 
 ### LSTM runs on the aligned file (shared comparison)
 
-Two further runs use the aligned GRACE/IMERG/MERRA-2 file from step 5, its cell mask, months from 2018 as input history, and the test period 2024-01 to 2025-09 (the file ends in September 2025). [lstm_aligned_grace.yaml](configs/lstm_aligned_grace.yaml) uses GRACE TWS only. [lstm_aligned_combined.yaml](configs/lstm_aligned_combined.yaml) adds past precipitation and temperature anomalies to each monthly input (early fusion). Both are strict forecasts: every input comes from the 12 months before the target. Model and training settings are unchanged. Test predictions with calibrated 90% bounds are saved in `results/predictions/` on the evaluator grid (`time × lat × lon`, cm).
+Two further runs use the team's final aligned GRACE/IMERG/MERRA-2 file (`p_t_tws_aligned_0.5deg_final.nc`, built by step 5 at commit 38e249a), its `training_mask` (46,325 cells), months from 2018 as input history, and the test period 2024-01 to 2025-09 (the file ends in September 2025). [lstm_aligned_grace.yaml](configs/lstm_aligned_grace.yaml) uses GRACE TWS only. [lstm_aligned_combined.yaml](configs/lstm_aligned_combined.yaml) adds past precipitation and temperature anomalies to each monthly input (early fusion). Both are strict forecasts: every input comes from the 12 months before the target. Model and training settings are unchanged. Test predictions with calibrated 90% bounds are saved in `results/predictions/` on the evaluator grid (`time × lat × lon`, cm). The final file has the same TWS, precipitation, temperature, months and cells as the earlier Oct 27 aligned file, so scores match the earlier runs.
 
 Scores on the aligned file's 46,325 cells, 21 test months:
 
@@ -190,7 +190,7 @@ The Transformer evaluator ([PR #1](https://github.com/Lyra0710/Multimodal-Deep-L
 | Ridge | 3.688 | 3.075 | 4.727 | 0.811 |
 | Persistence | 4.249 | 3.481 | 5.784 | 0.742 |
 
-The two reference masks differ by about 900 mostly coastal cells; the team should fix one aligned file before final scoring. To add the LSTM to the evaluator, append `--model lstm_grace ../../results/predictions/lstm_aligned_grace_test_predictions.nc prediction` and `--model lstm_combined ../../results/predictions/lstm_aligned_combined_test_predictions.nc prediction` to `compare.sh`.
+The two reference masks differ by about 900 mostly coastal cells; the final shared file uses the 46,325-cell mask, and the Transformer is being rerun on it. To add the LSTM to the evaluator, append `--model lstm_grace ../../results/predictions/lstm_aligned_grace_test_predictions.nc prediction` and `--model lstm_combined ../../results/predictions/lstm_aligned_combined_test_predictions.nc prediction` to `compare.sh`.
 
 ## Next steps
 

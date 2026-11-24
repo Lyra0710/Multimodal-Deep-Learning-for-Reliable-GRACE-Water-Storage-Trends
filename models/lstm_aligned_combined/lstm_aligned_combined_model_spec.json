@@ -12,7 +12,7 @@
       "latitude_limit_deg": 60,
       "min_anomaly_std_cm": 0.5,
       "source": "aligned",
-      "aligned_file": "data/processed/p_t_tws_aligned_0.5deg.nc",
+      "aligned_file": "data/processed/p_t_tws_aligned_0.5deg_final.nc",
       "mask_variable": "training_mask",
       "history_start": "2018-01",
       "inputs": [

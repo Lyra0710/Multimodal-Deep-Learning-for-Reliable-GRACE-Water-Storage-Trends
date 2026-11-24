@@ -4,7 +4,7 @@ extends: lstm_config.yaml
 
 data:
   source: aligned
-  aligned_file: "data/processed/p_t_tws_aligned_0.5deg.nc"   # output of scripts/p_t_tws_data.py
+  aligned_file: "data/processed/p_t_tws_aligned_0.5deg_final.nc"   # shared file regenerated with training_mask
   mask_variable: "training_mask"                              # falls back to "mask" in older files
   history_start: "2018-01"                                    # earlier months may supply input history
   cache: "data/processed/lstm_aligned_cache.npz"

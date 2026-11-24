@@ -116,6 +116,20 @@ def test_end(cfg: dict, shared: dict) -> pd.Period:
     return pd.Period((cfg.get("forecast", {}).get("test_end") or shared["splits"]["test"]["end"])[:7], "M")
 
 
+def source_id(path: Path) -> str:
+    """Name and size of the aligned file, so a cache built from a different file is rebuilt."""
+    return f"{path.name}:{path.stat().st_size}"
+
+
+def cache_is_current(cfg: dict, root: Path, cache: Path) -> bool:
+    if not cache.exists():
+        return False
+    if cfg["data"].get("source", "splits") != "aligned":
+        return True
+    with np.load(cache) as c:
+        return "source" in c and str(c["source"]) == source_id(root / cfg["data"]["aligned_file"])
+
+
 def prepare_aligned_cache(cfg: dict, shared: dict, root: Path) -> Path:
     """Aligned TWS, precipitation and temperature for the file's mask, history_start through test_end."""
     dc = cfg["data"]
@@ -131,6 +145,7 @@ def prepare_aligned_cache(cfg: dict, shared: dict, root: Path) -> Path:
     lat_idx, lon_idx = np.nonzero(keep)
     out = root / dc["cache"]
     np.savez_compressed(out, tws=tws, extra=extra, extra_names=np.array(["precip", "t2m"]),
+                        source=np.array(source_id(root / dc["aligned_file"])), mask_name=np.array(a["mask_name"]),
                         lat=a["lat"][lat_idx], lon=a["lon"][lon_idx], lat_idx=lat_idx, lon_idx=lon_idx,
                         grid_lat=a["lat"], grid_lon=a["lon"], month=months.month.values, year=months.year.values,
                         split=split_ids(months, shared))
@@ -587,7 +602,7 @@ def main():
         cfg["data"]["aligned_file"] = args.aligned_file
     shared = yaml.safe_load((root / args.config.parent / cfg["shared_split_config"]).read_text())
     cache = root / cfg["data"]["cache"]
-    if args.prepare_only or not cache.exists():
+    if args.prepare_only or not cache_is_current(cfg, root, cache):
         prepare_cache(cfg, shared, root)
         if args.prepare_only:
             return
