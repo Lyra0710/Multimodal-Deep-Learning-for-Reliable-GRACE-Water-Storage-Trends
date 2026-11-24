@@ -1,0 +1,5 @@
+model,variable,mean Σ|attribution| (cm),mean |net contribution| (cm),share of attribution (%)
+"TCN early fusion (GRACE + P,T)",Past TWS (GRACE),17.200085560515223,13.516324082957063,88.13776673817118
+"TCN early fusion (GRACE + P,T)",Precipitation anomaly,1.28314001225402,0.65536358482956,6.57514723950427
+"TCN early fusion (GRACE + P,T)",Temperature anomaly,1.0317748601451961,0.48189881299383586,5.287086022324558
+TCN (GRACE only),Past TWS (GRACE),19.684047917713873,13.74332753337982,100.0

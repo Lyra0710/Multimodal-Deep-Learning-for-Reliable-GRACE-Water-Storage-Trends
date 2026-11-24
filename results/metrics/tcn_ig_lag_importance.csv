@@ -1,0 +1,49 @@
+model,variable,lag_months,mean_abs_attribution_cm
+"TCN early fusion (GRACE + P,T)",Past TWS (GRACE),12,0.07727644331817601
+"TCN early fusion (GRACE + P,T)",Past TWS (GRACE),11,1.8584645196152858
+"TCN early fusion (GRACE + P,T)",Past TWS (GRACE),10,0.259830724193202
+"TCN early fusion (GRACE + P,T)",Past TWS (GRACE),9,1.4115522721570042
+"TCN early fusion (GRACE + P,T)",Past TWS (GRACE),8,0.03521051784266271
+"TCN early fusion (GRACE + P,T)",Past TWS (GRACE),7,0.20538540418452197
+"TCN early fusion (GRACE + P,T)",Past TWS (GRACE),6,0.0428931796893268
+"TCN early fusion (GRACE + P,T)",Past TWS (GRACE),5,0.4480039128530326
+"TCN early fusion (GRACE + P,T)",Past TWS (GRACE),4,0.10845375511155698
+"TCN early fusion (GRACE + P,T)",Past TWS (GRACE),3,0.8498417860575591
+"TCN early fusion (GRACE + P,T)",Past TWS (GRACE),2,0.2010263742534316
+"TCN early fusion (GRACE + P,T)",Past TWS (GRACE),1,11.702146673375543
+"TCN early fusion (GRACE + P,T)",Precipitation anomaly,11,0.06193894211409547
+"TCN early fusion (GRACE + P,T)",Precipitation anomaly,10,0.061475376562926884
+"TCN early fusion (GRACE + P,T)",Precipitation anomaly,9,0.047760137115094595
+"TCN early fusion (GRACE + P,T)",Precipitation anomaly,8,0.15033123455177824
+"TCN early fusion (GRACE + P,T)",Precipitation anomaly,7,0.014723913676017766
+"TCN early fusion (GRACE + P,T)",Precipitation anomaly,6,0.04111260428680511
+"TCN early fusion (GRACE + P,T)",Precipitation anomaly,5,0.03351234075113754
+"TCN early fusion (GRACE + P,T)",Precipitation anomaly,4,0.11282710790794598
+"TCN early fusion (GRACE + P,T)",Precipitation anomaly,3,0.041910296482766646
+"TCN early fusion (GRACE + P,T)",Precipitation anomaly,2,0.09665635275250573
+"TCN early fusion (GRACE + P,T)",Precipitation anomaly,1,0.17847542643961312
+"TCN early fusion (GRACE + P,T)",Precipitation anomaly,0,0.4424162801749661
+"TCN early fusion (GRACE + P,T)",Temperature anomaly,11,0.04762026856267504
+"TCN early fusion (GRACE + P,T)",Temperature anomaly,10,0.090167945824418
+"TCN early fusion (GRACE + P,T)",Temperature anomaly,9,0.03209025303740465
+"TCN early fusion (GRACE + P,T)",Temperature anomaly,8,0.15401529231138228
+"TCN early fusion (GRACE + P,T)",Temperature anomaly,7,0.013828140046853465
+"TCN early fusion (GRACE + P,T)",Temperature anomaly,6,0.04696730503242787
+"TCN early fusion (GRACE + P,T)",Temperature anomaly,5,0.0188677014924647
+"TCN early fusion (GRACE + P,T)",Temperature anomaly,4,0.104788061840903
+"TCN early fusion (GRACE + P,T)",Temperature anomaly,3,0.07427701805028875
+"TCN early fusion (GRACE + P,T)",Temperature anomaly,2,0.08013767801655171
+"TCN early fusion (GRACE + P,T)",Temperature anomaly,1,0.061684706612259214
+"TCN early fusion (GRACE + P,T)",Temperature anomaly,0,0.30733048926263395
+TCN (GRACE only),Past TWS (GRACE),12,0.24626828569058043
+TCN (GRACE only),Past TWS (GRACE),11,2.1695052849063807
+TCN (GRACE only),Past TWS (GRACE),10,0.4289980051417887
+TCN (GRACE only),Past TWS (GRACE),9,1.097173926834131
+TCN (GRACE only),Past TWS (GRACE),8,0.04086302334124421
+TCN (GRACE only),Past TWS (GRACE),7,0.32871359145700585
+TCN (GRACE only),Past TWS (GRACE),6,0.08857565913364171
+TCN (GRACE only),Past TWS (GRACE),5,0.5236224960797375
+TCN (GRACE only),Past TWS (GRACE),4,0.1723018052541171
+TCN (GRACE only),Past TWS (GRACE),3,1.1801338229711527
+TCN (GRACE only),Past TWS (GRACE),2,0.6689643488414182
+TCN (GRACE only),Past TWS (GRACE),1,12.73892768283621

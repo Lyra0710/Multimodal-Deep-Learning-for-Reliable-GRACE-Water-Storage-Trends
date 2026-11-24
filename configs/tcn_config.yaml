@@ -1,0 +1,49 @@
+# Temporal Convolutional Network (TCN) for one-month-ahead TWS forecasting.
+# Data paths, splits, and evaluation settings come from the P/T configuration, so the TCN is
+# trained and scored on exactly the same cells and months as the P/T baselines.
+base_config: "p_t_tws_config.yaml"
+
+data:
+  lookback_months: 12          # each prediction sees 12 monthly steps
+  # Nowcast timing (same as the baselines): to predict TWS(t), the window holds
+  # TWS(t-12)..TWS(t-1) and P/T(t-11)..P/T(t). Step k pairs TWS(s-1) with P/T(s).
+  timing: "nowcast"
+  calendar_features: true      # sin/cos of the month at each step (not a data source)
+  # Static cell selection from the shared aligned file. training_mask uses training-period availability
+  # only (leakage-free, as the README recommends for model development); test scoring is further
+  # restricted to the baselines' test cells when --baseline-predictions is given.
+  cell_mask: "training_mask"
+
+# Each run is one TCN trained on the listed sources (P/T-only still predicts TWS, from drivers alone).
+runs:
+  "TCN (GRACE only)": ["tws"]
+  "TCN early fusion (GRACE + P,T)": ["tws", "precip", "t2m"]   # all sources stacked as input channels
+  "TCN (P,T only)": ["precip", "t2m"]
+
+# Late fusion: combine the forecasts of two separately trained branches with area-weighted linear
+# stacking, y = a + w1*branch1 + w2*branch2. Weights are fit on 2023 using the train-only branch
+# models, then applied to the branches refit on train + validation, so the test period is never used.
+late_fusion:
+  name: "TCN late fusion (GRACE | P,T)"
+  branches: ["TCN (GRACE only)", "TCN (P,T only)"]
+
+model:
+  kernel_size: 3
+  dilations: [1, 2, 4, 8]      # receptive field 1 + 2*(3-1)*(1+2+4+8) = 61 steps >= lookback
+  weight_decay: 1.0e-4
+  batch_size: 2048
+
+training:
+  max_epochs: 30
+  patience: 5                  # early stopping on 2023 validation RMSE (area-weighted, cm)
+  samples_per_epoch: 300000    # random (month, cell) windows per epoch from ~2.2M train windows (~45-60 s/epoch at 32 ch on 8 CPU threads)
+  seed: 42
+  threads: 8
+
+# Every combination is trained on 2019-2022 and scored on 2023. The best one is refit on
+# 2019-2023 for its best epoch count (as the baselines are refit on train + validation),
+# then scored once on the test period.
+grid:
+  channels: [16, 32, 64]
+  dropout: [0.1, 0.3]
+  learning_rate: [1.0e-3, 3.0e-4]

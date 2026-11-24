@@ -1,0 +1,15 @@
+,,breakdown,group,% of windows,P+T share of attribution (%),variable,target-month anomaly,mean attribution at lag 0 (cm),% windows raising forecast
+when,0,|Precip anomaly at t|,0–0.5 σ,46.885,10.05823527306007,,,,
+when,1,|Precip anomaly at t|,0.5–1 σ,21.61,11.626565973210848,,,,
+when,2,|Precip anomaly at t|,1–2 σ,20.630000000000003,13.481184987253384,,,,
+when,3,|Precip anomaly at t|,> 2 σ,10.875,16.028405352654136,,,,
+when,4,Latitude zone,Tropics (|lat| < 23.5°),35.94,11.627771568646313,,,,
+when,5,Latitude zone,Subtropics (23.5–40°),28.965000000000003,12.217017319663997,,,,
+when,6,Latitude zone,Mid/high latitudes (≥ 40°),35.095,11.972570919481004,,,,
+when,7,All,all test windows,100.0,11.86223327400048,,,,
+direction,0,,,16.205,,Precipitation anomaly,anomaly < −1σ,-0.6079685178231872,9.073612862270476
+direction,1,,,68.49499999999999,,Precipitation anomaly,|anomaly| ≤ 1σ,0.014773094010257445,41.66087542418262
+direction,2,,,15.299999999999999,,Precipitation anomaly,anomaly > +1σ,1.2524759739709481,98.6040168443436
+direction,3,,,9.365,,Temperature anomaly,anomaly < −1σ,0.40601788804166833,83.68682075533187
+direction,4,,,53.945,,Temperature anomaly,|anomaly| ≤ 1σ,-0.011888764328612848,47.575275772205025
+direction,5,,,36.69,,Temperature anomaly,anomaly > +1σ,-0.3060622190973146,24.9591707435499
