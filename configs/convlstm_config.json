@@ -1,0 +1,41 @@
+{
+  "history_months": 12,
+  "patch_size": 32,
+  "patch_stride": 32,
+  "batch_size": 4,
+  "hidden_channels": 16,
+  "learning_rate": 0.001,
+  "max_epochs": 100,
+  "patience": 8,
+  "seed": 42,
+  "channels": {
+    "grace_only": [
+      "tws"
+    ],
+    "multimodal": [
+      "tws",
+      "precip",
+      "t2m"
+    ]
+  },
+  "splits": {
+    "train": [
+      "2019-01-01",
+      "2022-12-31"
+    ],
+    "validation": [
+      "2023-01-01",
+      "2023-12-31"
+    ],
+    "test": [
+      "2024-01-01",
+      "2025-12-31"
+    ]
+  },
+  "dataset_filename": "p_t_tws_aligned_0.5deg_final.nc",
+  "dataset_sha256": "b361f2066e8d7aee1cb1d6ae5fa640c75e44be4a2efe4a28d5652dbf28060e83",
+  "time_coverage": [
+    "2000-06-01",
+    "2025-09-01"
+  ]
+}
