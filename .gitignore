@@ -12,5 +12,6 @@ data/processed/*
 !data/processed/grace_fo_test.nc
 !data/processed/stat_trend_outputs.nc
 grace_fo_eda.md
+notebooks/README_ConvLSTM.md
 scripts/__pycache__
 tests/__pycache__
