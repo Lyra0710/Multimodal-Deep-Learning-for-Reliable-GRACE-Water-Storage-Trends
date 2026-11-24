@@ -12,7 +12,12 @@ def main():
     scores = pd.read_csv(root/'metrics.csv').sort_values('area_weighted_mean_cell_rmse_cm')
     fig, (left, right) = plt.subplots(1, 2, figsize=(11, 4.3), layout='constrained')
     colors = ['#176d75' if 'transformer' in name else '#808a96' for name in scores.model]
-    labels = scores.model.str.replace('_', ' ').str.capitalize().str.replace('Grace', 'GRACE')
+    labels = scores.model.map({
+        'grace_transformer': 'Transformer (GRACE)',
+        'combined_transformer': 'Transformer (GRACE + weather)',
+        'grace_lstm': 'LSTM (GRACE)',
+        'combined_lstm': 'LSTM (GRACE + weather)',
+    }).fillna(scores.model.str.replace('_', ' ').str.capitalize())
     bars = left.barh(labels, scores.area_weighted_mean_cell_rmse_cm, color=colors)
     left.bar_label(bars, fmt='%.2f', padding=3)
     left.invert_yaxis()

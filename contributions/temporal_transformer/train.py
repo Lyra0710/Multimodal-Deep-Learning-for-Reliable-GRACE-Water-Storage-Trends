@@ -1,5 +1,6 @@
 """Train a shared temporal self-attention model for one-month-ahead TWS."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -43,7 +44,11 @@ def load_data(path, combined):
             raise ValueError('Expected ordered, unique calendar months')
         dates = pd.period_range('2018-01', min(dates[-1], pd.Period('2025-12', 'M')), freq='M').to_timestamp()
         ds = ds.assign_coords(time=pd.DatetimeIndex(ds.time.values).to_period('M').to_timestamp()).reindex(time=dates)
-        land = (ds['mask'].fillna(0) > 0) & (abs(ds.lat) <= 60)
+        if ds['tws'].attrs.get('units') != 'cm':
+            raise ValueError('Expected tws target in cm')
+        if 'training_mask' not in ds:
+            raise ValueError('Final training requires the shared NetCDF with training_mask')
+        land = (ds['training_mask'].fillna(0) > 0) & (abs(ds.lat) <= 60)
         land = land.transpose('lat', 'lon').values
         values = np.stack([ds[v].transpose('time', 'lat', 'lon').values[:, land] for v in variables], axis=-1)
         coords = dict(lat=ds.lat.values, lon=ds.lon.values)
@@ -52,8 +57,7 @@ def load_data(path, combined):
     scale = np.nanstd(values[train], axis=(0, 1), dtype=np.float64).astype('float32')
     if not np.all(np.isfinite(mean) & np.isfinite(scale) & (scale > 0)):
         raise ValueError('Training variables need finite, nonzero scales')
-    z = (values - mean) / scale
-    return dates, land, coords, variables, z, mean, scale
+    return dates, land, coords, variables, values, mean, scale
 
 
 def main():
@@ -67,7 +71,12 @@ def main():
     torch.manual_seed(SEED)
     torch.set_num_threads(4)
     rng = np.random.default_rng(SEED)
-    dates, land, coords, variables, z, mean, scale = load_data(args.data, args.combined)
+    with args.data.open('rb') as source:
+        digest = hashlib.sha256()
+        for block in iter(lambda: source.read(1024 * 1024), b''):
+            digest.update(block)
+    dates, land, coords, variables, values, mean, scale = load_data(args.data, args.combined)
+    z = (values - mean) / scale
     month_angle = 2 * np.pi * (dates.month.to_numpy() - 1) / 12
     calendar = np.stack([np.sin(month_angle), np.cos(month_angle)], axis=1).astype('float32')
     offsets = np.arange(-HISTORY, 0)
@@ -90,6 +99,7 @@ def main():
 
     train = split(2019, 2022)
     validation = split(2023, 2023)
+    validation_pairs = len(validation)
     validation = validation[np.random.default_rng(SEED).choice(len(validation), min(16384, len(validation)), replace=False)]
     model = TemporalTransformer(len(variables) + 2)
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
@@ -133,15 +143,24 @@ def main():
                 c = cells[start:start+BATCH]
                 estimates[c] = model(examples(np.full(len(c), t), c)).numpy()*scale[0] + mean[0]
             pred[row, land] = estimates
-            truth[row, land] = z[t, :, 0]*scale[0] + mean[0]
+            truth[row, land] = values[t, :, 0]
     dims = ('time', 'lat', 'lon')
     result = xr.Dataset({k: (dims, a, {'units': 'cm'}) for k, a in [('prediction', pred), ('actual_tws', truth)]},
-                        coords=dict(time=dates[test], **coords))
+                        coords=dict(time=dates[test], **coords),
+                        attrs={'selection_mask': 'training_mask', 'dataset_sha256': digest.hexdigest(),
+                               'prediction_lead_months': 1, 'history_months': HISTORY})
     result.to_netcdf(out/'predictions.nc', engine='h5netcdf', encoding={k: {'zlib': True} for k in result.data_vars})
     pd.DataFrame(log).to_csv(out/'learning_curve.csv', index=False)
-    config = dict(seed=SEED, history_months=HISTORY, variables=variables, calendar=['sin_month','cos_month'],
+    config = dict(dataset=args.data.name, dataset_sha256=digest.hexdigest(),
+                  selection_mask='training_mask', land_cells=int(land.sum()), latitude_limit_deg=60,
+                  target='tws', target_units='cm', prediction_lead_months=1,
+                  seed=SEED, history_months=HISTORY, variables=variables, calendar=['sin_month', 'cos_month'],
+                  width=WIDTH, attention_heads=4, feedforward_width=48, batch_size=BATCH,
+                  optimizer='AdamW', learning_rate=0.001, epochs=len(log),
                   train='2019-01/2022-12', validation='2023-01/2023-12', test=[str(dates[test[0]].date()), str(dates[test[-1]].date())],
-                  training_pairs=len(train), sampled_per_epoch=len(selected), validation_sample=len(validation),
+                  training_pairs=len(train), training_target_months=int(np.unique(train[:, 0]).size),
+                  sampled_per_epoch=len(selected), validation_pairs=validation_pairs, validation_sample=len(validation),
+                  test_predictions=int(np.isfinite(pred).sum()),
                   selected_epoch=best_epoch, mean=mean.tolist(), scale=scale.tolist(), torch_version=str(torch.__version__))
     (out/'run.json').write_text(json.dumps(config, indent=2)+'\n')
 

@@ -1,4 +1,12 @@
 {
+  "dataset": "p_t_tws_aligned_0.5deg_final.nc",
+  "dataset_sha256": "b361f2066e8d7aee1cb1d6ae5fa640c75e44be4a2efe4a28d5652dbf28060e83",
+  "selection_mask": "training_mask",
+  "land_cells": 46325,
+  "latitude_limit_deg": 60,
+  "target": "tws",
+  "target_units": "cm",
+  "prediction_lead_months": 1,
   "seed": 42,
   "history_months": 12,
   "variables": [
@@ -10,25 +18,35 @@
     "sin_month",
     "cos_month"
   ],
+  "width": 24,
+  "attention_heads": 4,
+  "feedforward_width": 48,
+  "batch_size": 512,
+  "optimizer": "AdamW",
+  "learning_rate": 0.001,
+  "epochs": 12,
   "train": "2019-01/2022-12",
   "validation": "2023-01/2023-12",
   "test": [
     "2024-01-01",
     "2025-09-01"
   ],
-  "training_pairs": 1813383,
+  "training_pairs": 1806675,
+  "training_target_months": 39,
   "sampled_per_epoch": 32768,
+  "validation_pairs": 555900,
   "validation_sample": 16384,
-  "selected_epoch": 11,
+  "test_predictions": 972825,
+  "selected_epoch": 10,
   "mean": [
-    -1.9898598194122314,
-    70.7697982788086,
-    15.247305870056152
+    -2.4181432723999023,
+    70.2774658203125,
+    15.216005325317383
   ],
   "scale": [
-    19.749895095825195,
-    91.62007141113281,
-    13.457417488098145
+    20.74513816833496,
+    91.2206039428711,
+    13.459392547607422
   ],
   "torch_version": "2.8.0"
 }
