@@ -314,6 +314,89 @@ def run_experiment(cube: alignment.PixelCube, sources: list[str], config: dict, 
             "model": model, "prediction": prediction, "validation_prediction": validation_prediction}
 
 
+# ----------------------------------------------------------------------------- interpretability
+
+# Data channels that receive attributions. The GRACE "observed" flag and the month sin/cos are context:
+# the reference window keeps their real values, so their attribution is exactly zero.
+ATTRIBUTED_CHANNELS = ("tws_prev", "precip_anom", "t2m_anom")
+
+
+def load_trained_model(spec_path: Path) -> tuple[TCN, dict]:
+    """Rebuild a saved TCN from its specification JSON and the .pt state dict next to it."""
+    spec_path = Path(spec_path)
+    spec = json.loads(spec_path.read_text())
+    params = spec["selected_hyperparameters"]
+    model = TCN(len(spec["input_channels"]), params["channels"], spec["kernel_size"], spec["dilations"], params["dropout"])
+    model.load_state_dict(torch.load(spec_path.with_suffix(".pt"), map_location="cpu"))
+    return model.eval(), spec
+
+
+def explanation_inputs(cube: alignment.PixelCube, spec: dict, config: dict) -> WindowData:
+    """Input windows exactly as the saved (train + validation refit) model saw them."""
+    rows = cube.split_rows(config["base"]["splits"])
+    features, names, scaling = build_channels(cube, rows["train"] | rows["validation"], spec["sources"],
+                                              spec["timing"], config["data"]["calendar_features"])
+    if names != spec["input_channels"]:
+        raise ValueError(f"channel mismatch: rebuilt {names}, model expects {spec['input_channels']}")
+    for key, value in spec["scaling_train_validation"].items():
+        if not np.isclose(scaling[key], value, rtol=1e-6):
+            raise ValueError(f"scaling '{key}' differs from the saved model ({scaling[key]} vs {value}): wrong dataset?")
+    target = (cube.tws - scaling["tws_mean_cm"]) / scaling["tws_std_cm"]
+    return WindowData(features, target, cube.area_weight, spec["lookback_months"])
+
+
+def average_conditions_baseline(x: torch.Tensor, channel_names: list[str]) -> torch.Tensor:
+    """Reference window for Integrated Gradients: 'average conditions'.
+
+    Attributed data channels are set to 0 in scaled units, i.e. TWS at the training mean and normal
+    precipitation/temperature (zero anomaly). The observed flag and calendar keep their real values.
+    """
+    baseline = x.clone()
+    for index, name in enumerate(channel_names):
+        if name in ATTRIBUTED_CHANNELS:
+            baseline[..., index] = 0.0
+    return baseline
+
+
+def integrated_gradients(
+    model: nn.Module, x: torch.Tensor, baseline: torch.Tensor, steps: int = 64, batch: int = 1024
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Integrated Gradients (Sundararajan et al., 2017) for a model mapping (batch, lookback, channel) -> (batch,).
+
+    attribution = (x - baseline) * integral_0^1 dF/dx(baseline + a (x - baseline)) da, with the integral
+    approximated by the trapezoid rule over `steps` intervals. Returns the attributions (same shape as x, in
+    model output units) and the completeness gap sum(attribution) - (F(x) - F(baseline)) per sample, which
+    should be close to zero.
+    """
+    model.eval()
+    alphas = torch.linspace(0.0, 1.0, steps + 1)
+    weights = torch.full((steps + 1,), 1.0 / steps)
+    weights[[0, -1]] = 0.5 / steps
+    attributions = torch.zeros_like(x)
+    gaps = torch.zeros(len(x))
+    for start in range(0, len(x), batch):
+        xb, bb = x[start:start + batch], baseline[start:start + batch]
+        difference = xb - bb
+        path_gradient = torch.zeros_like(xb)
+        for alpha, weight in zip(alphas, weights):
+            point = (bb + alpha * difference).requires_grad_(True)
+            (gradient,) = torch.autograd.grad(model(point).sum(), point)
+            path_gradient += weight * gradient
+        attributions[start:start + batch] = path_gradient * difference
+        with torch.no_grad():
+            gaps[start:start + batch] = attributions[start:start + batch].sum((1, 2)) - (model(xb) - model(bb))
+    return attributions, gaps
+
+
+def attribution_lags(channel_names: list[str], lookback: int) -> dict[str, np.ndarray]:
+    """Months before the target month t for each window step, per channel (nowcast timing).
+
+    Step k holds TWS(s - 1) and P/T(s) with s = t - (lookback - 1) + k, so TWS lags run 12..1 and P/T lags 11..0.
+    """
+    steps = np.arange(lookback)
+    return {name: (lookback - steps if name.startswith("tws") else lookback - 1 - steps) for name in channel_names}
+
+
 # ----------------------------------------------------------------------------- late fusion
 
 

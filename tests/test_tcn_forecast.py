@@ -132,6 +132,41 @@ class TCNForecastTests(unittest.TestCase):
         self.assertTrue(mask[self.rows["test"]].any() and not mask[~self.rows["test"]].any())
         self.assertGreater(metrics.loc["TCN test", "MSESS_vs_clim"], 0)  # beats climatology on learnable data
 
+    def test_integrated_gradients_is_exact_for_a_linear_model(self):
+        class Linear(torch.nn.Module):
+            def __init__(self, weight):
+                super().__init__()
+                self.weight = weight
+
+            def forward(self, x):
+                return (x * self.weight).sum((1, 2)) + 0.7
+
+        weight = torch.randn(12, 3)
+        x, baseline = torch.randn(5, 12, 3), torch.randn(5, 12, 3)
+        attributions, gaps = tcn.integrated_gradients(Linear(weight), x, baseline, steps=4)
+        torch.testing.assert_close(attributions, weight * (x - baseline))
+        self.assertLess(gaps.abs().max().item(), 1e-4)
+
+    def test_integrated_gradients_completeness_and_context_channels_on_tcn(self):
+        torch.manual_seed(0)
+        names = ["tws_prev", "tws_prev_observed", "precip_anom", "t2m_anom", "month_sin", "month_cos"]
+        model = tcn.TCN(n_inputs=len(names), channels=8, kernel_size=3, dilations=[1, 2, 4, 8], dropout=0.3)
+        x = torch.randn(16, 12, len(names))
+        baseline = tcn.average_conditions_baseline(x, names)
+        attributions, gaps = tcn.integrated_gradients(model, x, baseline, steps=128)
+        with torch.no_grad():
+            spread = (model(x) - model(baseline)).abs().mean().item()
+        self.assertLess(gaps.abs().mean().item(), 0.02 * spread + 1e-4)  # sum of attributions ≈ F(x) − F(baseline)
+        for index, name in enumerate(names):
+            if name not in tcn.ATTRIBUTED_CHANNELS:  # flag and calendar keep real values -> zero attribution
+                self.assertTrue(torch.all(attributions[..., index] == 0), name)
+        self.assertTrue(torch.all(baseline[..., names.index("tws_prev")] == 0))
+
+    def test_attribution_lags_follow_nowcast_alignment(self):
+        lags = tcn.attribution_lags(["tws_prev", "precip_anom"], lookback=12)
+        self.assertEqual((lags["tws_prev"][0], lags["tws_prev"][-1]), (12, 1))    # TWS(t-12) .. TWS(t-1)
+        self.assertEqual((lags["precip_anom"][0], lags["precip_anom"][-1]), (11, 0))  # P(t-11) .. P(t)
+
 
 if __name__ == "__main__":
     unittest.main()
