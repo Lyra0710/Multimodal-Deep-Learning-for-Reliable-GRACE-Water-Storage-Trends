@@ -128,7 +128,10 @@ The multimodal handoff produced by `p_t_tws_data.py` is `data/processed/p_t_tws_
    python scripts/lstm_forecast.py --config configs/lstm_config.yaml
    python scripts/lstm_forecast.py --config configs/lstm_aligned_grace.yaml
    python scripts/lstm_forecast.py --config configs/lstm_aligned_combined.yaml
+   python scripts/lstm_extra_metrics.py --config configs/lstm_aligned_combined.yaml
    ```
+
+   The last command adds further metrics from a run's saved predictions without retraining; pass the same config as the run.
 
    [LSTM_Forecast_and_Uncertainty.ipynb](notebooks/LSTM_Forecast_and_Uncertainty.ipynb) runs the same script and shows the results; it also runs on Google Colab (GPU optional).
 
@@ -177,6 +180,16 @@ Scores on the aligned file's 46,325 cells, 21 test months:
 | Persistence | 3.482 | 4.249 | 0.742 | |
 
 Adding precipitation and temperature lowers the LSTM's per-cell RMSE by 0.041 cm (1.4%) and narrows the mean 90% interval from 10.0 to 9.5 cm at the same coverage.
+
+`scripts/lstm_extra_metrics.py` scores the saved predictions with further metrics (`results/metrics/lstm_*_extra_metrics.csv`): per-cell Nash–Sutcliffe efficiency (NSE), RMSE skill against persistence, MSE skill against climatology, CRPS (equal to MAE for point forecasts), and the interval score of the calibrated 90% interval (width plus 20 × any miss). Results on the aligned file:
+
+| Model | Median NSE | Area with NSE > 0 | RMSE skill vs persistence | MSE skill vs climatology | CRPS (cm) | 90% interval score (cm) |
+|---|---|---|---|---|---|---|
+| LSTM, GRACE + precipitation + temperature | **0.713** | 97.0% | **0.327** | **0.887** | **1.617** | **12.3** |
+| LSTM, GRACE only | 0.688 | **97.1%** | 0.318 | 0.885 | 1.637 | 12.6 |
+| Seasonal persistence | 0.638 | 87.2% | 0.274 | 0.873 | 2.453 | |
+| AR (p ≤ 3, anomalies) | 0.612 | 85.4% | 0.233 | 0.849 | 2.620 | |
+| Persistence | 0.552 | 95.6% | 0 | 0.700 | 3.482 | |
 
 The Transformer evaluator ([PR #1](https://github.com/Lyra0710/Multimodal-Deep-Learning-for-Reliable-GRACE-Water-Storage-Trends/pull/1)) scores models on the cell-months that every model and its reference file share. Its reference file has 46,497 cells, of which 45,956 are also in the aligned file used here; observed TWS is identical on those cells. Scored with that evaluator's metric functions on the 45,956 common cells and 21 months:
 
