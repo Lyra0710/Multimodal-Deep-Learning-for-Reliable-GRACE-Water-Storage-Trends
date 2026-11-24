@@ -1,0 +1,10 @@
+numpy==2.0.2
+pandas==2.3.3
+torch==2.8.0
+xarray==2024.7.0
+scipy==1.13.1
+matplotlib==3.9.4
+scikit-learn==1.6.1
+h5netcdf==1.8.1
+h5py==3.14.0
+PyYAML==6.0.3

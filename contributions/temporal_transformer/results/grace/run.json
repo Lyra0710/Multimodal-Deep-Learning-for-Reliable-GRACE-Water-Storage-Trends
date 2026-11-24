@@ -1,0 +1,46 @@
+{
+  "dataset": "p_t_tws_aligned_0.5deg_final.nc",
+  "dataset_sha256": "b361f2066e8d7aee1cb1d6ae5fa640c75e44be4a2efe4a28d5652dbf28060e83",
+  "selection_mask": "training_mask",
+  "land_cells": 46325,
+  "latitude_limit_deg": 60,
+  "target": "tws",
+  "target_units": "cm",
+  "prediction_lead_months": 1,
+  "seed": 42,
+  "history_months": 12,
+  "variables": [
+    "tws"
+  ],
+  "calendar": [
+    "sin_month",
+    "cos_month"
+  ],
+  "width": 24,
+  "attention_heads": 4,
+  "feedforward_width": 48,
+  "batch_size": 512,
+  "optimizer": "AdamW",
+  "learning_rate": 0.001,
+  "epochs": 12,
+  "train": "2019-01/2022-12",
+  "validation": "2023-01/2023-12",
+  "test": [
+    "2024-01-01",
+    "2025-09-01"
+  ],
+  "training_pairs": 1806675,
+  "training_target_months": 39,
+  "sampled_per_epoch": 32768,
+  "validation_pairs": 555900,
+  "validation_sample": 16384,
+  "test_predictions": 972825,
+  "selected_epoch": 12,
+  "mean": [
+    -2.4181432723999023
+  ],
+  "scale": [
+    20.74513816833496
+  ],
+  "torch_version": "2.8.0"
+}
