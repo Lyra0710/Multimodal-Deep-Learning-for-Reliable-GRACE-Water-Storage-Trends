@@ -1,5 +1,7 @@
 # One-month-ahead water storage forecasts with temporal self-attention
 
+The Transformer implementation, shared-mask retraining, and common evaluator were contributed by [@Revanth0211](https://github.com/Revanth0211) in [PR #1](https://github.com/Lyra0710/Multimodal-Deep-Learning-for-Reliable-GRACE-Water-Storage-Trends/pull/1).
+
 ## Experiment
 
 At each land cell, predict next month's GRACE terrestrial water storage anomaly in cm using twelve consecutive observed months. One shared model learns across cells. The first run uses GRACE alone. The second adds monthly IMERG precipitation and MERRA-2 air temperature to each historical token. The two runs share a seed, calendar features, training budget, validation sample and evaluation observations.
