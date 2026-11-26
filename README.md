@@ -191,7 +191,9 @@ Adding precipitation and temperature lowers the LSTM's per-cell RMSE by 0.041 cm
 | AR (p ≤ 3, anomalies) | 0.612 | 85.4% | 0.233 | 0.849 | 2.620 | |
 | Persistence | 0.552 | 95.6% | 0 | 0.700 | 3.482 | |
 
-The Transformer evaluator ([PR #1](https://github.com/Lyra0710/Multimodal-Deep-Learning-for-Reliable-GRACE-Water-Storage-Trends/pull/1)) scores models on the cell-months that every model and its reference file share. Its reference file has 46,497 cells, of which 45,956 are also in the aligned file used here; observed TWS is identical on those cells. Scored with that evaluator's metric functions on the 45,956 common cells and 21 months:
+The final [Transformer and LSTM evaluation](contributions/temporal_transformer/README.md) covers 46,325 shared land cells over 21 months (January 2024 through September 2025). The area-weighted mean per-cell RMSE was 3.188 cm for the GRACE-only Transformer, 3.065 cm with precipitation and temperature, and 3.083 cm for seasonal persistence. The [full results](contributions/temporal_transformer/results/metrics.csv) include both LSTM runs and all three reference baselines.
+
+The following earlier comparison used the intersection of two preliminary masks (45,956 cells). It is retained to document the intermediate Ridge comparison.
 
 | Model | Per-cell RMSE (cm) | MAE (cm) | Pooled RMSE (cm) | Pearson r |
 |---|---|---|---|---|
@@ -203,11 +205,10 @@ The Transformer evaluator ([PR #1](https://github.com/Lyra0710/Multimodal-Deep-L
 | Ridge | 3.688 | 3.075 | 4.727 | 0.811 |
 | Persistence | 4.249 | 3.481 | 5.784 | 0.742 |
 
-The two reference masks differ by about 900 mostly coastal cells; the final shared file uses the 46,325-cell mask, and the Transformer is being rerun on it. To add the LSTM to the evaluator, append `--model lstm_grace ../../results/predictions/lstm_aligned_grace_test_predictions.nc prediction` and `--model lstm_combined ../../results/predictions/lstm_aligned_combined_test_predictions.nc prediction` to `compare.sh`.
+## Follow-up items from the project plan
 
-## Next steps
+The list below records the original plan. See the individual model folders for completed experiments.
 
-- Implement TCN and temporal Transformer models.
 - Investigate early and late multimodal fusion.
 - Evaluate a gridded ConvLSTM model, as suggested in proposal feedback.
 - Test geographic, temporal, and GRACE-to-GRACE-FO generalization.
